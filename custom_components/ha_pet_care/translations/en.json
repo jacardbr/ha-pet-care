@@ -1,0 +1,171 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HA Pet Care",
+        "description": "Track vaccines, dewormers, exams, baths, grooming and vet visits for your pets. After setup, add your pets by selecting Configure on the integration."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "HA Pet Care is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage pets",
+        "menu_options": {
+          "add_pet": "Add a pet",
+          "remove_pet": "Remove a pet"
+        }
+      },
+      "add_pet": {
+        "title": "Add a pet",
+        "data": {
+          "name": "Name",
+          "species": "Species",
+          "birthdate": "Birth date",
+          "photo": "Photo path"
+        },
+        "data_description": {
+          "photo": "Optional. Path to an image inside your Home Assistant config folder, for example /config/www/pets/rex.jpg."
+        }
+      },
+      "remove_pet": {
+        "title": "Remove a pet",
+        "description": "The pet and its entire history will be deleted.",
+        "data": {
+          "pet": "Pet"
+        }
+      }
+    },
+    "error": {
+      "pet_exists": "A pet with this name already exists.",
+      "photo_path_not_allowed": "This path is not allowed. Use a file inside your Home Assistant config folder.",
+      "photo_not_found": "The photo file was not found.",
+      "photo_invalid_type": "Unsupported image type. Use JPG, PNG, WEBP or GIF."
+    },
+    "abort": {
+      "no_pets": "There are no pets to remove."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "vaccine": { "name": "Last vaccine" },
+      "deworming": { "name": "Last dewormer" },
+      "exam": { "name": "Last exam" },
+      "bath": { "name": "Last bath" },
+      "grooming": { "name": "Last grooming" },
+      "vet_visit": { "name": "Last vet visit" },
+      "next_due": { "name": "Next due" }
+    },
+    "image": {
+      "photo": { "name": "Photo" }
+    }
+  },
+  "selector": {
+    "species": {
+      "options": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      }
+    },
+    "record_type": {
+      "options": {
+        "vaccine": "Vaccine",
+        "deworming": "Dewormer",
+        "exam": "Exam",
+        "bath": "Bath",
+        "grooming": "Grooming",
+        "vet_visit": "Vet visit"
+      }
+    }
+  },
+  "services": {
+    "add_record": {
+      "name": "Add record",
+      "description": "Registers a vaccine, dewormer, exam, bath, grooming or vet visit for a pet.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Name of the pet."
+        },
+        "type": {
+          "name": "Type",
+          "description": "What was done."
+        },
+        "date": {
+          "name": "Date",
+          "description": "When it was done. Defaults to today."
+        },
+        "description": {
+          "name": "Description",
+          "description": "Short description, for example the vaccine name or the clinic."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free notes, results or observations."
+        },
+        "next_due": {
+          "name": "Next due date",
+          "description": "When the next one is due (booster, next bath, return visit)."
+        }
+      }
+    },
+    "remove_record": {
+      "name": "Remove record",
+      "description": "Deletes a record from a pet's history.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Name of the pet."
+        },
+        "record_id": {
+          "name": "Record ID",
+          "description": "ID of the record, found in the sensor's history attribute or returned by Add record."
+        }
+      }
+    },
+    "set_photo": {
+      "name": "Set photo",
+      "description": "Sets the profile photo of a pet from an image file.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Name of the pet."
+        },
+        "path": {
+          "name": "Path",
+          "description": "Path to a JPG, PNG, WEBP or GIF file inside your Home Assistant config folder."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "HA Pet Care is not set up."
+    },
+    "pet_not_found": {
+      "message": "Pet \"{pet}\" was not found."
+    },
+    "pet_exists": {
+      "message": "A pet named \"{pet}\" already exists."
+    },
+    "record_not_found": {
+      "message": "Record \"{record_id}\" was not found."
+    },
+    "photo_path_not_allowed": {
+      "message": "Path \"{path}\" is not allowed. Use a file inside your Home Assistant config folder."
+    },
+    "photo_not_found": {
+      "message": "Photo file \"{path}\" was not found."
+    },
+    "photo_invalid_type": {
+      "message": "Unsupported image type. Use JPG, PNG, WEBP or GIF."
+    },
+    "invalid_next_due": {
+      "message": "The next due date cannot be before the record date."
+    }
+  }
+}

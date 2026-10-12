@@ -1,0 +1,18 @@
+{
+  "entity": {
+    "sensor": {
+      "vaccine": { "default": "mdi:needle" },
+      "deworming": { "default": "mdi:pill" },
+      "exam": { "default": "mdi:test-tube" },
+      "bath": { "default": "mdi:shower" },
+      "grooming": { "default": "mdi:content-cut" },
+      "vet_visit": { "default": "mdi:stethoscope" },
+      "next_due": { "default": "mdi:calendar-alert" }
+    }
+  },
+  "services": {
+    "add_record": { "service": "mdi:plus-circle" },
+    "remove_record": { "service": "mdi:minus-circle" },
+    "set_photo": { "service": "mdi:image-edit" }
+  }
+}

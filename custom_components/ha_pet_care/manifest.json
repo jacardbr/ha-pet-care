@@ -1,0 +1,13 @@
+{
+  "domain": "ha_pet_care",
+  "name": "HA Pet Care",
+  "codeowners": ["@SEU_USUARIO"],
+  "config_flow": true,
+  "documentation": "https://github.com/SEU_USUARIO/ha-pet-care",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/SEU_USUARIO/ha-pet-care/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

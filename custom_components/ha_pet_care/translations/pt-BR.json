@@ -1,0 +1,171 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HA Pet Care",
+        "description": "Controle vacinas, vermífugos, exames, banhos, tosas e consultas dos seus pets. Depois de configurar, adicione seus pets em Configurar na integração."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "O HA Pet Care já está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gerenciar pets",
+        "menu_options": {
+          "add_pet": "Adicionar um pet",
+          "remove_pet": "Remover um pet"
+        }
+      },
+      "add_pet": {
+        "title": "Adicionar um pet",
+        "data": {
+          "name": "Nome",
+          "species": "Espécie",
+          "birthdate": "Data de nascimento",
+          "photo": "Caminho da foto"
+        },
+        "data_description": {
+          "photo": "Opcional. Caminho de uma imagem dentro da pasta de configuração do Home Assistant, por exemplo /config/www/pets/rex.jpg."
+        }
+      },
+      "remove_pet": {
+        "title": "Remover um pet",
+        "description": "O pet e todo o seu histórico serão apagados.",
+        "data": {
+          "pet": "Pet"
+        }
+      }
+    },
+    "error": {
+      "pet_exists": "Já existe um pet com esse nome.",
+      "photo_path_not_allowed": "Esse caminho não é permitido. Use um arquivo dentro da pasta de configuração do Home Assistant.",
+      "photo_not_found": "O arquivo da foto não foi encontrado.",
+      "photo_invalid_type": "Tipo de imagem não suportado. Use JPG, PNG, WEBP ou GIF."
+    },
+    "abort": {
+      "no_pets": "Não há pets para remover."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "vaccine": { "name": "Última vacina" },
+      "deworming": { "name": "Último vermífugo" },
+      "exam": { "name": "Último exame" },
+      "bath": { "name": "Último banho" },
+      "grooming": { "name": "Última tosa" },
+      "vet_visit": { "name": "Última consulta" },
+      "next_due": { "name": "Próximo vencimento" }
+    },
+    "image": {
+      "photo": { "name": "Foto" }
+    }
+  },
+  "selector": {
+    "species": {
+      "options": {
+        "dog": "Cachorro",
+        "cat": "Gato",
+        "other": "Outro"
+      }
+    },
+    "record_type": {
+      "options": {
+        "vaccine": "Vacina",
+        "deworming": "Vermífugo",
+        "exam": "Exame",
+        "bath": "Banho",
+        "grooming": "Tosa",
+        "vet_visit": "Consulta veterinária"
+      }
+    }
+  },
+  "services": {
+    "add_record": {
+      "name": "Adicionar registro",
+      "description": "Registra uma vacina, vermífugo, exame, banho, tosa ou consulta de um pet.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Nome do pet."
+        },
+        "type": {
+          "name": "Tipo",
+          "description": "O que foi feito."
+        },
+        "date": {
+          "name": "Data",
+          "description": "Quando foi feito. Se vazio, usa hoje."
+        },
+        "description": {
+          "name": "Descrição",
+          "description": "Descrição curta, por exemplo o nome da vacina ou da clínica."
+        },
+        "notes": {
+          "name": "Observações",
+          "description": "Anotações livres, resultados ou observações."
+        },
+        "next_due": {
+          "name": "Próxima data",
+          "description": "Quando vence o próximo (reforço, próximo banho, retorno)."
+        }
+      }
+    },
+    "remove_record": {
+      "name": "Remover registro",
+      "description": "Apaga um registro do histórico de um pet.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Nome do pet."
+        },
+        "record_id": {
+          "name": "ID do registro",
+          "description": "ID do registro, encontrado no atributo history do sensor ou retornado por Adicionar registro."
+        }
+      }
+    },
+    "set_photo": {
+      "name": "Definir foto",
+      "description": "Define a foto de perfil de um pet a partir de um arquivo de imagem.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Nome do pet."
+        },
+        "path": {
+          "name": "Caminho",
+          "description": "Caminho de um arquivo JPG, PNG, WEBP ou GIF dentro da pasta de configuração do Home Assistant."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "O HA Pet Care não está configurado."
+    },
+    "pet_not_found": {
+      "message": "O pet \"{pet}\" não foi encontrado."
+    },
+    "pet_exists": {
+      "message": "Já existe um pet chamado \"{pet}\"."
+    },
+    "record_not_found": {
+      "message": "O registro \"{record_id}\" não foi encontrado."
+    },
+    "photo_path_not_allowed": {
+      "message": "O caminho \"{path}\" não é permitido. Use um arquivo dentro da pasta de configuração do Home Assistant."
+    },
+    "photo_not_found": {
+      "message": "O arquivo de foto \"{path}\" não foi encontrado."
+    },
+    "photo_invalid_type": {
+      "message": "Tipo de imagem não suportado. Use JPG, PNG, WEBP ou GIF."
+    },
+    "invalid_next_due": {
+      "message": "A próxima data não pode ser anterior à data do registro."
+    }
+  }
+}

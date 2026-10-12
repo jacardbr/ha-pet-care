@@ -1,0 +1,63 @@
+add_record:
+  fields:
+    pet:
+      required: true
+      example: "Rex"
+      selector:
+        text:
+    type:
+      required: true
+      selector:
+        select:
+          translation_key: record_type
+          options:
+            - vaccine
+            - deworming
+            - exam
+            - bath
+            - grooming
+            - vet_visit
+    date:
+      required: false
+      selector:
+        date:
+    description:
+      required: false
+      example: "V10"
+      selector:
+        text:
+    notes:
+      required: false
+      selector:
+        text:
+          multiline: true
+    next_due:
+      required: false
+      selector:
+        date:
+
+remove_record:
+  fields:
+    pet:
+      required: true
+      example: "Rex"
+      selector:
+        text:
+    record_id:
+      required: true
+      example: "a1b2c3d4"
+      selector:
+        text:
+
+set_photo:
+  fields:
+    pet:
+      required: true
+      example: "Rex"
+      selector:
+        text:
+    path:
+      required: true
+      example: "/config/www/pets/rex.jpg"
+      selector:
+        text:
