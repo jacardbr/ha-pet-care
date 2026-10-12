@@ -15,6 +15,7 @@ Para cada pet, um dispositivo com:
 | `sensor.<pet>_ultima_tosa` | Data da última tosa |
 | `sensor.<pet>_ultima_consulta` | Data da última consulta |
 | `sensor.<pet>_proximo_vencimento` | Data mais próxima entre os "próximos vencimentos" (atrasados continuam aparecendo) |
+| `sensor.<pet>_idade` | Idade calculada a partir da data de nascimento (ex.: "2 anos e 3 meses"); atributos com `years`, `months`, `total_months`, `decimal_years`, `next_birthday`, `days_until_birthday` e `is_birthday` |
 | `image.<pet>_foto` | Foto de perfil |
 
 Cada sensor de "último" traz nos atributos: `description`, `notes`, `next_due`, `days_since`, `record_id`, `total_records` e `history` (últimos 10 registros).

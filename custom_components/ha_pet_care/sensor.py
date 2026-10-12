@@ -28,6 +28,7 @@ async def async_setup_entry(
     for pet_id in store.pets:
         entities.extend(PetRecordSensor(store, pet_id, key) for key in RECORD_TYPES)
         entities.append(PetNextDueSensor(store, pet_id))
+        entities.append(PetAgeSensor(store, pet_id))
     async_add_entities(entities)
 
 
@@ -153,3 +154,90 @@ class PetNextDueSensor(PetBaseSensor):
                 }
             )
         return attrs
+
+
+def _age_parts(birth: date, today: date) -> tuple[int, int, int]:
+    """Return (full years, remaining months, total months) since the birth date."""
+    total_months = (today.year - birth.year) * 12 + today.month - birth.month
+    if today.day < birth.day:
+        total_months -= 1
+    return total_months // 12, total_months % 12, total_months
+
+
+def _next_birthday(birth: date, today: date) -> date:
+    """Return the next birthday (today counts)."""
+
+    def on_year(year: int) -> date:
+        try:
+            return birth.replace(year=year)
+        except ValueError:  # 29 de fevereiro em ano nao bissexto
+            return date(year, 2, 28)
+
+    candidate = on_year(today.year)
+    return candidate if candidate >= today else on_year(today.year + 1)
+
+
+class PetAgeSensor(PetBaseSensor):
+    """Age of the pet as text, calculated from its birth date."""
+
+    _attr_device_class = None
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(store, pet_id, "age")
+
+    def _birthdate(self) -> date | None:
+        value = self._store.pets[self._pet_id].get("birthdate")
+        if not value:
+            return None
+        try:
+            birth = date.fromisoformat(value)
+        except ValueError:
+            return None
+        return birth if birth <= dt_util.now().date() else None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the age, e.g. "2 anos e 3 meses" / "2 years and 3 months"."""
+        birth = self._birthdate()
+        if birth is None:
+            return None
+        today = dt_util.now().date()
+        years, months, _ = _age_parts(birth, today)
+        days = (today - birth).days
+        if self.hass.config.language.lower().startswith("pt"):
+            units = (("ano", "anos"), ("mês", "meses"), ("dia", "dias"))
+            joiner = " e "
+        else:
+            units = (("year", "years"), ("month", "months"), ("day", "days"))
+            joiner = " and "
+        parts = []
+        if years:
+            parts.append(f"{years} {units[0][years != 1]}")
+        if months:
+            parts.append(f"{months} {units[1][months != 1]}")
+        if not parts:
+            parts.append(f"{days} {units[2][days != 1]}")
+        return joiner.join(parts)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the age in numbers and birthday information."""
+        birth = self._birthdate()
+        if birth is None:
+            return {}
+        today = dt_util.now().date()
+        years, months, total_months = _age_parts(birth, today)
+        days = (today - birth).days
+        next_birthday = _next_birthday(birth, today)
+        return {
+            "birthdate": birth.isoformat(),
+            "years": years,
+            "months": months,
+            "total_months": total_months,
+            "total_days": days,
+            "decimal_years": round(days / 365.25, 1),
+            "next_birthday": next_birthday.isoformat(),
+            "days_until_birthday": (next_birthday - today).days,
+            "is_birthday": next_birthday == today,
+        }

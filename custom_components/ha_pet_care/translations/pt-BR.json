@@ -57,7 +57,8 @@
       "bath": { "name": "Último banho" },
       "grooming": { "name": "Última tosa" },
       "vet_visit": { "name": "Última consulta" },
-      "next_due": { "name": "Próximo vencimento" }
+      "next_due": { "name": "Próximo vencimento" },
+      "age": { "name": "Idade" }
     },
     "image": {
       "photo": { "name": "Foto" }

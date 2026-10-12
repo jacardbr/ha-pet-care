@@ -57,7 +57,8 @@
       "bath": { "name": "Last bath" },
       "grooming": { "name": "Last grooming" },
       "vet_visit": { "name": "Last vet visit" },
-      "next_due": { "name": "Next due" }
+      "next_due": { "name": "Next due" },
+      "age": { "name": "Age" }
     },
     "image": {
       "photo": { "name": "Photo" }
