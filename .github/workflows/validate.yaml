@@ -17,8 +17,6 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
-          # Remova a linha abaixo depois de adicionar a pasta brand com o icon.png
-          ignore: brands
 
   hassfest:
     name: Hassfest
