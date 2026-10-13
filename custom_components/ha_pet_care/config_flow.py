@@ -17,6 +17,8 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.selector import (
     DateSelector,
+    FileSelector,
+    FileSelectorConfig,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -33,6 +35,8 @@ from .const import (
     DOMAIN,
     SPECIES,
 )
+
+PHOTO_SELECTOR = FileSelector(FileSelectorConfig(accept="image/*"))
 
 
 class PetCareConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -58,35 +62,31 @@ class PetCareConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class PetCareOptionsFlow(OptionsFlow):
-    """Add and remove pets."""
+    """Add pets, change photos and remove pets."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Show the main menu."""
         return self.async_show_menu(
-            step_id="init", menu_options=["add_pet", "remove_pet"]
+            step_id="init", menu_options=["add_pet", "set_photo", "remove_pet"]
         )
 
     async def async_step_add_pet(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Add a pet."""
+        """Add a pet, optionally with an uploaded photo."""
         store = self.config_entry.runtime_data
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            photo = (user_input.get(CONF_PHOTO) or "").strip()
             try:
-                if photo:
-                    await store.async_validate_photo(photo)
-                pet_id = await store.async_add_pet(
+                await store.async_add_pet(
                     user_input[CONF_NAME],
                     user_input[CONF_SPECIES],
                     user_input.get(CONF_BIRTHDATE),
+                    user_input.get(CONF_PHOTO),
                 )
-                if photo:
-                    await store.async_set_photo(pet_id, photo)
             except ServiceValidationError as err:
                 errors["base"] = err.translation_key or "unknown"
             else:
@@ -104,12 +104,54 @@ class PetCareOptionsFlow(OptionsFlow):
                     )
                 ),
                 vol.Optional(CONF_BIRTHDATE): DateSelector(),
-                vol.Optional(CONF_PHOTO): TextSelector(),
+                vol.Optional(CONF_PHOTO): PHOTO_SELECTOR,
             }
         )
+        # An uploaded file is consumed on submit, so it is never pre-filled again.
+        suggested = {k: v for k, v in (user_input or {}).items() if k != CONF_PHOTO}
         return self.async_show_form(
             step_id="add_pet",
-            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
+        )
+
+    async def async_step_set_photo(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the photo of an existing pet."""
+        store = self.config_entry.runtime_data
+        if not store.pets:
+            return self.async_abort(reason="no_pets")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                await store.async_set_photo_upload(
+                    user_input[CONF_PET], user_input[CONF_PHOTO]
+                )
+            except ServiceValidationError as err:
+                errors["base"] = err.translation_key or "unknown"
+            else:
+                return self.async_create_entry(data={})
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_PET): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(value=pet_id, label=pet["name"])
+                            for pet_id, pet in store.pets.items()
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(CONF_PHOTO): PHOTO_SELECTOR,
+            }
+        )
+        suggested = {k: v for k, v in (user_input or {}).items() if k != CONF_PHOTO}
+        return self.async_show_form(
+            step_id="set_photo",
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
             errors=errors,
         )
 

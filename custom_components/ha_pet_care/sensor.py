@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import UnitOfMass
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -13,7 +19,16 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
 from . import PetCareConfigEntry
-from .const import HISTORY_LIMIT, RECORD_TYPES, signal_updated
+from .const import (
+    DEWORMING_INTERVAL_MONTHS,
+    HISTORY_LIMIT,
+    RECORD_DEWORMING,
+    RECORD_TYPES,
+    RECORD_VACCINE,
+    VACCINE_INTERVAL_MONTHS,
+    WEIGHT_HISTORY_LIMIT,
+    signal_updated,
+)
 from .store import PetCareStore
 
 
@@ -27,8 +42,10 @@ async def async_setup_entry(
     entities: list[SensorEntity] = []
     for pet_id in store.pets:
         entities.extend(PetRecordSensor(store, pet_id, key) for key in RECORD_TYPES)
-        entities.append(PetNextDueSensor(store, pet_id))
+        entities.append(PetNextVaccineSensor(store, pet_id))
+        entities.append(PetNextDewormerSensor(store, pet_id))
         entities.append(PetAgeSensor(store, pet_id))
+        entities.append(PetWeightSensor(store, pet_id))
     async_add_entities(entities)
 
 
@@ -114,46 +131,90 @@ class PetRecordSensor(PetBaseSensor):
         return attrs
 
 
-class PetNextDueSensor(PetBaseSensor):
-    """Closest due date among the latest record of each type (overdue stays visible)."""
+def _add_months(start: date, months: int) -> date:
+    """Return start plus whole months, clamping the day (Aug 31 + 6 -> Feb 28)."""
+    index = start.year * 12 + start.month - 1 + months
+    year, month = divmod(index, 12)
+    month += 1
+    return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
 
-    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+
+class PetNextCareSensor(PetBaseSensor):
+    """Next due date of a recurring care (vaccine, dewormer).
+
+    It is filled automatically: the last record's date plus a fixed interval.
+    A "next due" date typed on the latest record takes priority.
+    """
+
+    def __init__(
+        self,
+        store: PetCareStore,
+        pet_id: str,
+        key: str,
+        record_type: str,
+        interval_months: int,
+    ) -> None:
         """Initialize the sensor."""
-        super().__init__(store, pet_id, "next_due")
+        super().__init__(store, pet_id, key)
+        self._record_type = record_type
+        self._interval_months = interval_months
 
-    def _upcoming(self) -> list[tuple[str, str, dict[str, Any]]]:
-        items = []
-        for record_type in RECORD_TYPES:
-            records = self._store.records(self._pet_id, record_type)
-            if records and records[0]["next_due"]:
-                items.append((records[0]["next_due"], record_type, records[0]))
-        return sorted(items, key=lambda item: item[0])
+    def _next(self) -> tuple[date, dict[str, Any], str] | None:
+        """Return (next date, last record, source) or None without records."""
+        records = self._store.records(self._pet_id, self._record_type)
+        if not records:
+            return None
+        last = records[0]
+        if last["next_due"]:
+            return date.fromisoformat(last["next_due"]), last, "manual"
+        return (
+            _add_months(date.fromisoformat(last["date"]), self._interval_months),
+            last,
+            "automatic",
+        )
 
     @property
     def native_value(self) -> date | None:
-        """Return the closest due date."""
-        upcoming = self._upcoming()
-        return date.fromisoformat(upcoming[0][0]) if upcoming else None
+        """Return the next due date."""
+        found = self._next()
+        return found[0] if found else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return what is due next and every pending due date."""
-        upcoming = self._upcoming()
-        attrs: dict[str, Any] = {
-            "upcoming": {record_type: due for due, record_type, _ in upcoming}
+        """Return how the date was obtained and how far away it is."""
+        found = self._next()
+        if found is None:
+            return {"interval_months": self._interval_months}
+        due, last, source = found
+        days_until = _days_between(dt_util.now().date(), due)
+        return {
+            "last_date": last["date"],
+            "last_description": last["description"],
+            "source": source,
+            "interval_months": self._interval_months,
+            "days_until": days_until,
+            "overdue": days_until < 0,
         }
-        if upcoming:
-            due, record_type, record = upcoming[0]
-            attrs.update(
-                {
-                    "type": record_type,
-                    "description": record["description"],
-                    "days_until": _days_between(
-                        dt_util.now().date(), date.fromisoformat(due)
-                    ),
-                }
-            )
-        return attrs
+
+
+class PetNextVaccineSensor(PetNextCareSensor):
+    """Next vaccine: one year after the last vaccine."""
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            store, pet_id, "next_vaccine", RECORD_VACCINE, VACCINE_INTERVAL_MONTHS
+        )
+
+
+class PetNextDewormerSensor(PetNextCareSensor):
+    """Next dewormer: six months after the last dewormer."""
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            store, pet_id, "next_dewormer", RECORD_DEWORMING, DEWORMING_INTERVAL_MONTHS
+        )
 
 
 def _age_parts(birth: date, today: date) -> tuple[int, int, int]:
@@ -241,3 +302,56 @@ class PetAgeSensor(PetBaseSensor):
             "days_until_birthday": (next_birthday - today).days,
             "is_birthday": next_birthday == today,
         }
+
+
+class PetWeightSensor(PetBaseSensor):
+    """Latest weight of the pet in kg, with the growth history in the attributes."""
+
+    _attr_device_class = SensorDeviceClass.WEIGHT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfMass.KILOGRAMS
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(store, pet_id, "weight")
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the most recent weight."""
+        entries = self._store.weights(self._pet_id)
+        return entries[0]["weight"] if entries else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the date, the change and the history of weights."""
+        entries = self._store.weights(self._pet_id)
+        attrs: dict[str, Any] = {"total_records": len(entries)}
+        if entries:
+            last = entries[0]
+            attrs.update(
+                {
+                    "date": last["date"],
+                    "record_id": last["id"],
+                    "days_since": _days_between(
+                        date.fromisoformat(last["date"]), dt_util.now().date()
+                    ),
+                }
+            )
+            if len(entries) > 1:
+                previous, first = entries[1], entries[-1]
+                attrs.update(
+                    {
+                        "previous_weight": previous["weight"],
+                        "change": round(last["weight"] - previous["weight"], 3),
+                        "first_weight": first["weight"],
+                        "change_since_first": round(
+                            last["weight"] - first["weight"], 3
+                        ),
+                    }
+                )
+        attrs["history"] = [
+            {"record_id": e["id"], "date": e["date"], "weight": e["weight"]}
+            for e in entries[:WEIGHT_HISTORY_LIMIT]
+        ]
+        return attrs

@@ -21,16 +21,24 @@ from .const import (
     ATTR_PET,
     ATTR_RECORD_ID,
     ATTR_TYPE,
+    ATTR_WEIGHT,
     DOMAIN,
-    EVENT_RECORD_ADDED,
+    MAX_WEIGHT_KG,
     RECORD_TYPES,
     SERVICE_ADD_RECORD,
+    SERVICE_ADD_WEIGHT,
     SERVICE_REMOVE_RECORD,
+    SERVICE_REMOVE_WEIGHT,
     SERVICE_SET_PHOTO,
 )
 from .store import PetCareStore
 
-PLATFORMS = [Platform.SENSOR, Platform.IMAGE]
+PLATFORMS = [
+    Platform.SENSOR,
+    Platform.IMAGE,
+    Platform.NUMBER,
+    Platform.BUTTON,
+]
 
 type PetCareConfigEntry = ConfigEntry[PetCareStore]
 
@@ -51,6 +59,15 @@ REMOVE_RECORD_SCHEMA = vol.Schema(
 )
 SET_PHOTO_SCHEMA = vol.Schema(
     {vol.Required(ATTR_PET): cv.string, vol.Required(ATTR_PATH): cv.string}
+)
+ADD_WEIGHT_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_PET): cv.string,
+        vol.Required(ATTR_WEIGHT): vol.All(
+            vol.Coerce(float), vol.Range(min=0, min_included=False, max=MAX_WEIGHT_KG)
+        ),
+        vol.Optional(ATTR_DATE): cv.date,
+    }
 )
 
 
@@ -78,18 +95,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             call.data.get(ATTR_NOTES),
             call.data.get(ATTR_NEXT_DUE),
         )
-        call.hass.bus.async_fire(
-            EVENT_RECORD_ADDED,
-            {
-                "pet_id": pet_id,
-                "pet_name": store.pets[pet_id]["name"],
-                "type": record["type"],
-                "date": record["date"],
-                "description": record["description"],
-                "next_due": record["next_due"],
-                "record_id": record["id"],
-            },
-        )
         return {"record_id": record["id"]}
 
     async def remove_record(call: ServiceCall) -> None:
@@ -102,6 +107,31 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         pet_id = store.get_pet_id(call.data[ATTR_PET])
         await store.async_set_photo(pet_id, call.data[ATTR_PATH])
 
+    async def add_weight(call: ServiceCall) -> dict[str, str]:
+        store = _get_store(call.hass)
+        pet_id = store.get_pet_id(call.data[ATTR_PET])
+        entry = await store.async_add_weight(
+            pet_id,
+            call.data[ATTR_WEIGHT],
+            call.data.get(ATTR_DATE) or dt_util.now().date(),
+        )
+        return {"record_id": entry["id"]}
+
+    async def remove_weight(call: ServiceCall) -> None:
+        store = _get_store(call.hass)
+        pet_id = store.get_pet_id(call.data[ATTR_PET])
+        await store.async_remove_weight(pet_id, call.data[ATTR_RECORD_ID])
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_WEIGHT,
+        add_weight,
+        schema=ADD_WEIGHT_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_REMOVE_WEIGHT, remove_weight, schema=REMOVE_RECORD_SCHEMA
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADD_RECORD,

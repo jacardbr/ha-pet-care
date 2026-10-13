@@ -7,13 +7,27 @@
       "bath": { "default": "mdi:shower" },
       "grooming": { "default": "mdi:content-cut" },
       "vet_visit": { "default": "mdi:stethoscope" },
-      "next_due": { "default": "mdi:calendar-alert" },
-      "age": { "default": "mdi:cake-variant" }
+      "next_vaccine": { "default": "mdi:calendar-alert" },
+      "next_dewormer": { "default": "mdi:calendar-refresh" },
+      "age": { "default": "mdi:cake-variant" },
+      "weight": { "default": "mdi:weight-kilogram" }
+    },
+    "number": {
+      "log_weight": { "default": "mdi:scale-bathroom" }
+    },
+    "button": {
+      "add_vaccine": { "default": "mdi:needle" },
+      "add_deworming": { "default": "mdi:pill" },
+      "add_bath": { "default": "mdi:shower" },
+      "add_grooming": { "default": "mdi:content-cut" },
+      "add_vet_visit": { "default": "mdi:stethoscope" }
     }
   },
   "services": {
     "add_record": { "service": "mdi:plus-circle" },
     "remove_record": { "service": "mdi:minus-circle" },
-    "set_photo": { "service": "mdi:image-edit" }
+    "set_photo": { "service": "mdi:image-edit" },
+    "add_weight": { "service": "mdi:scale-bathroom" },
+    "remove_weight": { "service": "mdi:delete" }
   }
 }

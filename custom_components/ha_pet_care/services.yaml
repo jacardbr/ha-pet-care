@@ -61,3 +61,38 @@ set_photo:
       example: "/config/www/pets/rex.jpg"
       selector:
         text:
+
+add_weight:
+  fields:
+    pet:
+      required: true
+      example: "Rex"
+      selector:
+        text:
+    weight:
+      required: true
+      example: 4.2
+      selector:
+        number:
+          min: 0.01
+          max: 200
+          step: 0.01
+          unit_of_measurement: kg
+          mode: box
+    date:
+      required: false
+      selector:
+        date:
+
+remove_weight:
+  fields:
+    pet:
+      required: true
+      example: "Rex"
+      selector:
+        text:
+    record_id:
+      required: true
+      example: "a1b2c3d4"
+      selector:
+        text:

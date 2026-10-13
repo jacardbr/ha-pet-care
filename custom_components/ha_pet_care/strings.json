@@ -16,6 +16,7 @@
         "title": "Manage pets",
         "menu_options": {
           "add_pet": "Add a pet",
+          "set_photo": "Change a pet's photo",
           "remove_pet": "Remove a pet"
         }
       },
@@ -25,10 +26,20 @@
           "name": "Name",
           "species": "Species",
           "birthdate": "Birth date",
-          "photo": "Photo path"
+          "photo": "Photo"
         },
         "data_description": {
-          "photo": "Optional. Path to an image inside your Home Assistant config folder, for example /config/www/pets/rex.jpg."
+          "photo": "Optional. Attach a JPG, PNG, WEBP or GIF image."
+        }
+      },
+      "set_photo": {
+        "title": "Change a pet's photo",
+        "data": {
+          "pet": "Pet",
+          "photo": "Photo"
+        },
+        "data_description": {
+          "photo": "Attach a JPG, PNG, WEBP or GIF image."
         }
       },
       "remove_pet": {
@@ -41,27 +52,73 @@
     },
     "error": {
       "pet_exists": "A pet with this name already exists.",
-      "photo_path_not_allowed": "This path is not allowed. Use a file inside your Home Assistant config folder.",
-      "photo_not_found": "The photo file was not found.",
-      "photo_invalid_type": "Unsupported image type. Use JPG, PNG, WEBP or GIF."
+      "photo_invalid_type": "Unsupported image type. Use JPG, PNG, WEBP or GIF.",
+      "photo_upload_failed": "The upload could not be read. Attach the photo again.",
+      "photo_too_large": "The photo is too large. The limit is 10 MB."
     },
     "abort": {
-      "no_pets": "There are no pets to remove."
+      "no_pets": "There are no pets yet."
     }
   },
   "entity": {
     "sensor": {
-      "vaccine": { "name": "Last vaccine" },
-      "deworming": { "name": "Last dewormer" },
-      "exam": { "name": "Last exam" },
-      "bath": { "name": "Last bath" },
-      "grooming": { "name": "Last grooming" },
-      "vet_visit": { "name": "Last vet visit" },
-      "next_due": { "name": "Next due" },
-      "age": { "name": "Age" }
+      "vaccine": {
+        "name": "Last vaccine"
+      },
+      "deworming": {
+        "name": "Last dewormer"
+      },
+      "exam": {
+        "name": "Last exam"
+      },
+      "bath": {
+        "name": "Last bath"
+      },
+      "grooming": {
+        "name": "Last grooming"
+      },
+      "vet_visit": {
+        "name": "Last vet visit"
+      },
+      "age": {
+        "name": "Age"
+      },
+      "weight": {
+        "name": "Weight"
+      },
+      "next_vaccine": {
+        "name": "Next vaccine"
+      },
+      "next_dewormer": {
+        "name": "Next dewormer"
+      }
     },
     "image": {
-      "photo": { "name": "Photo" }
+      "photo": {
+        "name": "Photo"
+      }
+    },
+    "number": {
+      "log_weight": {
+        "name": "Log weight"
+      }
+    },
+    "button": {
+      "add_vaccine": {
+        "name": "Log vaccine"
+      },
+      "add_deworming": {
+        "name": "Log dewormer"
+      },
+      "add_bath": {
+        "name": "Log bath"
+      },
+      "add_grooming": {
+        "name": "Log grooming"
+      },
+      "add_vet_visit": {
+        "name": "Log vet visit"
+      }
     }
   },
   "selector": {
@@ -110,7 +167,7 @@
         },
         "next_due": {
           "name": "Next due date",
-          "description": "When the next one is due (booster, next bath, return visit)."
+          "description": "When the next one is due (booster, next bath, return visit). For vaccines and dewormers it replaces the automatic date (1 year and 6 months after the last one)."
         }
       }
     },
@@ -141,6 +198,38 @@
           "description": "Path to a JPG, PNG, WEBP or GIF file inside your Home Assistant config folder."
         }
       }
+    },
+    "add_weight": {
+      "name": "Add weight",
+      "description": "Registers the weight of a pet to track its growth.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Name of the pet."
+        },
+        "weight": {
+          "name": "Weight",
+          "description": "Weight in kilograms (kg)."
+        },
+        "date": {
+          "name": "Date",
+          "description": "When the pet was weighed. Defaults to today."
+        }
+      }
+    },
+    "remove_weight": {
+      "name": "Remove weight",
+      "description": "Deletes a weight entry from a pet's history.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Name of the pet."
+        },
+        "record_id": {
+          "name": "Record ID",
+          "description": "ID of the weight entry, found in the weight sensor's history attribute or returned by Add weight."
+        }
+      }
     }
   },
   "exceptions": {
@@ -167,6 +256,15 @@
     },
     "invalid_next_due": {
       "message": "The next due date cannot be before the record date."
+    },
+    "photo_upload_failed": {
+      "message": "The upload could not be read. Attach the photo again."
+    },
+    "photo_too_large": {
+      "message": "The photo is too large. The limit is 10 MB."
+    },
+    "invalid_weight": {
+      "message": "The weight must be greater than 0 and at most 200 kg."
     }
   }
 }

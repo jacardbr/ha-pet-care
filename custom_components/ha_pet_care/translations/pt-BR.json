@@ -16,6 +16,7 @@
         "title": "Gerenciar pets",
         "menu_options": {
           "add_pet": "Adicionar um pet",
+          "set_photo": "Alterar a foto de um pet",
           "remove_pet": "Remover um pet"
         }
       },
@@ -25,10 +26,20 @@
           "name": "Nome",
           "species": "Espécie",
           "birthdate": "Data de nascimento",
-          "photo": "Caminho da foto"
+          "photo": "Foto"
         },
         "data_description": {
-          "photo": "Opcional. Caminho de uma imagem dentro da pasta de configuração do Home Assistant, por exemplo /config/www/pets/rex.jpg."
+          "photo": "Opcional. Anexe uma imagem JPG, PNG, WEBP ou GIF."
+        }
+      },
+      "set_photo": {
+        "title": "Alterar a foto de um pet",
+        "data": {
+          "pet": "Pet",
+          "photo": "Foto"
+        },
+        "data_description": {
+          "photo": "Anexe uma imagem JPG, PNG, WEBP ou GIF."
         }
       },
       "remove_pet": {
@@ -41,27 +52,73 @@
     },
     "error": {
       "pet_exists": "Já existe um pet com esse nome.",
-      "photo_path_not_allowed": "Esse caminho não é permitido. Use um arquivo dentro da pasta de configuração do Home Assistant.",
-      "photo_not_found": "O arquivo da foto não foi encontrado.",
-      "photo_invalid_type": "Tipo de imagem não suportado. Use JPG, PNG, WEBP ou GIF."
+      "photo_invalid_type": "Tipo de imagem não suportado. Use JPG, PNG, WEBP ou GIF.",
+      "photo_upload_failed": "Não foi possível ler o arquivo enviado. Anexe a foto novamente.",
+      "photo_too_large": "A foto é grande demais. O limite é 10 MB."
     },
     "abort": {
-      "no_pets": "Não há pets para remover."
+      "no_pets": "Ainda não há pets cadastrados."
     }
   },
   "entity": {
     "sensor": {
-      "vaccine": { "name": "Última vacina" },
-      "deworming": { "name": "Último vermífugo" },
-      "exam": { "name": "Último exame" },
-      "bath": { "name": "Último banho" },
-      "grooming": { "name": "Última tosa" },
-      "vet_visit": { "name": "Última consulta" },
-      "next_due": { "name": "Próximo vencimento" },
-      "age": { "name": "Idade" }
+      "vaccine": {
+        "name": "Última vacina"
+      },
+      "deworming": {
+        "name": "Último vermífugo"
+      },
+      "exam": {
+        "name": "Último exame"
+      },
+      "bath": {
+        "name": "Último banho"
+      },
+      "grooming": {
+        "name": "Última tosa"
+      },
+      "vet_visit": {
+        "name": "Última consulta"
+      },
+      "age": {
+        "name": "Idade"
+      },
+      "weight": {
+        "name": "Peso"
+      },
+      "next_vaccine": {
+        "name": "Próxima vacina"
+      },
+      "next_dewormer": {
+        "name": "Próximo vermífugo"
+      }
     },
     "image": {
-      "photo": { "name": "Foto" }
+      "photo": {
+        "name": "Foto"
+      }
+    },
+    "number": {
+      "log_weight": {
+        "name": "Registrar peso"
+      }
+    },
+    "button": {
+      "add_vaccine": {
+        "name": "Registrar vacina"
+      },
+      "add_deworming": {
+        "name": "Registrar vermífugo"
+      },
+      "add_bath": {
+        "name": "Registrar banho"
+      },
+      "add_grooming": {
+        "name": "Registrar tosa"
+      },
+      "add_vet_visit": {
+        "name": "Registrar consulta"
+      }
     }
   },
   "selector": {
@@ -110,7 +167,7 @@
         },
         "next_due": {
           "name": "Próxima data",
-          "description": "Quando vence o próximo (reforço, próximo banho, retorno)."
+          "description": "Quando vence o próximo (reforço, próximo banho, retorno). Para vacina e vermífugo, substitui a data automática (1 ano e 6 meses depois da última)."
         }
       }
     },
@@ -141,6 +198,38 @@
           "description": "Caminho de um arquivo JPG, PNG, WEBP ou GIF dentro da pasta de configuração do Home Assistant."
         }
       }
+    },
+    "add_weight": {
+      "name": "Adicionar peso",
+      "description": "Registra o peso de um pet para acompanhar o crescimento.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Nome do pet."
+        },
+        "weight": {
+          "name": "Peso",
+          "description": "Peso em quilogramas (kg)."
+        },
+        "date": {
+          "name": "Data",
+          "description": "Quando o pet foi pesado. Se vazio, usa hoje."
+        }
+      }
+    },
+    "remove_weight": {
+      "name": "Remover peso",
+      "description": "Apaga um registro de peso do histórico de um pet.",
+      "fields": {
+        "pet": {
+          "name": "Pet",
+          "description": "Nome do pet."
+        },
+        "record_id": {
+          "name": "ID do registro",
+          "description": "ID do registro de peso, encontrado no atributo history do sensor de peso ou retornado por Adicionar peso."
+        }
+      }
     }
   },
   "exceptions": {
@@ -167,6 +256,15 @@
     },
     "invalid_next_due": {
       "message": "A próxima data não pode ser anterior à data do registro."
+    },
+    "photo_upload_failed": {
+      "message": "Não foi possível ler o arquivo enviado. Anexe a foto novamente."
+    },
+    "photo_too_large": {
+      "message": "A foto é grande demais. O limite é 10 MB."
+    },
+    "invalid_weight": {
+      "message": "O peso deve ser maior que 0 e no máximo 200 kg."
     }
   }
 }

@@ -3,6 +3,7 @@
   "name": "HA Pet Care",
   "codeowners": ["@jacardbr"],
   "config_flow": true,
+  "dependencies": ["file_upload"],
   "documentation": "https://github.com/jacardbr/ha-pet-care",
   "integration_type": "service",
   "iot_class": "calculated",
