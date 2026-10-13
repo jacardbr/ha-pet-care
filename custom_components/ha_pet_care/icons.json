@@ -9,6 +9,7 @@
       "vet_visit": { "default": "mdi:stethoscope" },
       "next_vaccine": { "default": "mdi:calendar-alert" },
       "next_dewormer": { "default": "mdi:calendar-refresh" },
+      "next_bath": { "default": "mdi:shower-head" },
       "age": { "default": "mdi:cake-variant" },
       "weight": { "default": "mdi:weight-kilogram" }
     },

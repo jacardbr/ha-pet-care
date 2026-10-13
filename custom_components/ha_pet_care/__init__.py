@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import voluptuous as vol
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -22,6 +26,8 @@ from .const import (
     ATTR_RECORD_ID,
     ATTR_TYPE,
     ATTR_WEIGHT,
+    CARD_FILE,
+    CARD_URL_PATH,
     DOMAIN,
     MAX_WEIGHT_KG,
     RECORD_TYPES,
@@ -82,7 +88,14 @@ def _get_store(hass: HomeAssistant) -> PetCareStore:
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the integration's services."""
+    """Register the integration's services and the Lovelace card."""
+    card_path = Path(__file__).parent / CARD_FILE
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL_PATH, str(card_path), False)]
+    )
+    # Version in the query string makes browsers fetch the card again after updates.
+    stat = await hass.async_add_executor_job(card_path.stat)
+    add_extra_js_url(hass, f"{CARD_URL_PATH}?v={stat.st_mtime_ns}")
 
     async def add_record(call: ServiceCall) -> dict[str, str]:
         store = _get_store(call.hass)

@@ -91,6 +91,9 @@
       },
       "next_dewormer": {
         "name": "Próximo vermífugo"
+      },
+      "next_bath": {
+        "name": "Próximo banho"
       }
     },
     "image": {

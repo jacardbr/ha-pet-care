@@ -91,6 +91,9 @@
       },
       "next_dewormer": {
         "name": "Next dewormer"
+      },
+      "next_bath": {
+        "name": "Next bath"
       }
     },
     "image": {

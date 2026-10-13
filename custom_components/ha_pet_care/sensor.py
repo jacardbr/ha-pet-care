@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -20,6 +20,8 @@ from homeassistant.util import dt as dt_util
 
 from . import PetCareConfigEntry
 from .const import (
+    BATH_INTERVAL_DAYS,
+    RECORD_BATH,
     DEWORMING_INTERVAL_MONTHS,
     HISTORY_LIMIT,
     RECORD_DEWORMING,
@@ -44,6 +46,7 @@ async def async_setup_entry(
         entities.extend(PetRecordSensor(store, pet_id, key) for key in RECORD_TYPES)
         entities.append(PetNextVaccineSensor(store, pet_id))
         entities.append(PetNextDewormerSensor(store, pet_id))
+        entities.append(PetNextBathSensor(store, pet_id))
         entities.append(PetAgeSensor(store, pet_id))
         entities.append(PetWeightSensor(store, pet_id))
     async_add_entities(entities)
@@ -152,12 +155,24 @@ class PetNextCareSensor(PetBaseSensor):
         pet_id: str,
         key: str,
         record_type: str,
-        interval_months: int,
+        interval_months: int | None = None,
+        interval_days: int | None = None,
     ) -> None:
-        """Initialize the sensor."""
+        """Initialize the sensor (interval in months or in days)."""
         super().__init__(store, pet_id, key)
         self._record_type = record_type
         self._interval_months = interval_months
+        self._interval_days = interval_days
+
+    def _interval_attrs(self) -> dict[str, Any]:
+        if self._interval_days is not None:
+            return {"interval_days": self._interval_days}
+        return {"interval_months": self._interval_months}
+
+    def _add_interval(self, start: date) -> date:
+        if self._interval_days is not None:
+            return start + timedelta(days=self._interval_days)
+        return _add_months(start, self._interval_months or 0)
 
     def _next(self) -> tuple[date, dict[str, Any], str] | None:
         """Return (next date, last record, source) or None without records."""
@@ -168,7 +183,7 @@ class PetNextCareSensor(PetBaseSensor):
         if last["next_due"]:
             return date.fromisoformat(last["next_due"]), last, "manual"
         return (
-            _add_months(date.fromisoformat(last["date"]), self._interval_months),
+            self._add_interval(date.fromisoformat(last["date"])),
             last,
             "automatic",
         )
@@ -184,14 +199,14 @@ class PetNextCareSensor(PetBaseSensor):
         """Return how the date was obtained and how far away it is."""
         found = self._next()
         if found is None:
-            return {"interval_months": self._interval_months}
+            return self._interval_attrs()
         due, last, source = found
         days_until = _days_between(dt_util.now().date(), due)
         return {
             "last_date": last["date"],
             "last_description": last["description"],
             "source": source,
-            "interval_months": self._interval_months,
+            **self._interval_attrs(),
             "days_until": days_until,
             "overdue": days_until < 0,
         }
@@ -214,6 +229,16 @@ class PetNextDewormerSensor(PetNextCareSensor):
         """Initialize the sensor."""
         super().__init__(
             store, pet_id, "next_dewormer", RECORD_DEWORMING, DEWORMING_INTERVAL_MONTHS
+        )
+
+
+class PetNextBathSensor(PetNextCareSensor):
+    """Next bath: fifteen days after the last bath."""
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            store, pet_id, "next_bath", RECORD_BATH, interval_days=BATH_INTERVAL_DAYS
         )
 
 
