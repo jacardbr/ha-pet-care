@@ -25,6 +25,7 @@ const TEXTS = {
     panel_title: (x) => `Registrar ${x.toLowerCase()}`,
     panel_title_weight: "Registrar peso",
     panel_date: "Data do evento",
+    panel_desc: "Vacinas aplicadas",
     panel_weight: "Peso (kg)",
     panel_ok: "Registrar",
     panel_cancel: "Cancelar",
@@ -82,6 +83,7 @@ const TEXTS = {
     panel_title: (x) => `Log ${x.toLowerCase()}`,
     panel_title_weight: "Log weight",
     panel_date: "Event date",
+    panel_desc: "Vaccines given",
     panel_weight: "Weight (kg)",
     panel_ok: "Log it",
     panel_cancel: "Cancel",
@@ -131,13 +133,14 @@ const ROWS = [
   { key: "exam", icon: "mdi:clipboard-pulse", kind: "last" },
 ];
 const ACTIONS = [
-  { key: "add_vaccine", type: "vaccine", icon: "mdi:needle", press: true },
+  { key: "add_vaccine", type: "vaccine", multi: true, icon: "mdi:needle", press: true },
   { key: "add_deworming", type: "deworming", icon: "mdi:pill", press: true },
   { key: "add_bath", type: "bath", icon: "mdi:shower-head", press: true },
   { key: "add_grooming", type: "grooming", icon: "mdi:content-cut", press: true },
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
+const DEFAULT_VACCINES = ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"];
 const DEFAULT_ACTIONS = ACTIONS.map((a) => a.key);
 const HIST = [
   { key: "weight", icon: "mdi:weight-kilogram" },
@@ -252,6 +255,7 @@ class HaPetCareCard extends HTMLElement {
     const title = isWeight ? t.panel_title_weight : t.panel_title(t[`act_${action.key}`]);
     return `<div class="panel" data-panel="${action.key}">
       <div class="ptitle">${this._esc(title)}</div>
+      ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
       <div class="pbtns">
@@ -259,6 +263,11 @@ class HaPetCareCard extends HTMLElement {
         <button class="pbtn ok" data-pok>${this._esc(t.panel_ok)}</button>
       </div>
     </div>`;
+  }
+
+  _vaccineOptions() {
+    const opts = this._config.vaccine_options;
+    return Array.isArray(opts) && opts.length ? opts.map(String) : DEFAULT_VACCINES;
   }
 
   _panelValid() {
@@ -279,7 +288,7 @@ class HaPetCareCard extends HTMLElement {
       const v = byKey.log_weight ? this._hass.states[byKey.log_weight]?.state : undefined;
       weight = v && !isNaN(Number(v)) ? v : "";
     }
-    this._panel = { key, date: this._today(), weight };
+    this._panel = { key, date: this._today(), weight, vaccines: [] };
     this._last = null;
     this._render();
     const first = this.querySelector(".panel input");
@@ -292,7 +301,10 @@ class HaPetCareCard extends HTMLElement {
     const action = ACTIONS.find((a) => a.key === p.key);
     const pet = this._petName(byKey);
     if (action.press) {
-      this._hass.callService("ha_pet_care", "add_record", { pet, type: action.type, date: p.date });
+      const data = { pet, type: action.type, date: p.date };
+      const chosen = this._vaccineOptions().filter((v) => (p.vaccines || []).includes(v));
+      if (action.multi && chosen.length) data.description = chosen.join(", ");
+      this._hass.callService("ha_pet_care", "add_record", data);
     } else {
       this._hass.callService("ha_pet_care", "add_weight", { pet, weight: Number(p.weight), date: p.date });
     }
@@ -438,7 +450,7 @@ class HaPetCareCard extends HTMLElement {
 
   _render() {
     if (!this._config || !this._hass) return;
-    if (this._panel && this.querySelector(".panel :focus")) return; // never rebuild while the user types
+    if (this._panel && this.querySelector(".panel input:focus")) return; // never rebuild while the user types
     const hass = this._hass;
     const t = tr(hass);
     const { deviceId, byKey } = this._siblings();
@@ -484,6 +496,13 @@ class HaPetCareCard extends HTMLElement {
           .panel input { font: inherit; font-size: 1rem; padding: 6px 8px; border-radius: 8px; min-width: 0;
                          border: 1px solid var(--divider-color); background: var(--secondary-background-color);
                          color: var(--primary-text-color); }
+          .vwrap { flex: 1 0 100%; }
+          .vlabel { font-size: 0.8em; color: var(--secondary-text-color); margin-bottom: 6px; }
+          .vchips { display: flex; flex-wrap: wrap; gap: 6px; }
+          .vchip { font: inherit; font-size: 0.9em; padding: 5px 12px; border-radius: 16px; cursor: pointer;
+                   border: 1px solid var(--divider-color); background: var(--secondary-background-color);
+                   color: var(--primary-text-color); }
+          .vchip.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
           .panel input.w { width: 6.5em; }
           .pbtns { display: flex; gap: 8px; margin-left: auto; }
           .pbtn { font: inherit; padding: 7px 14px; border-radius: 16px; cursor: pointer;
@@ -569,6 +588,15 @@ class HaPetCareCard extends HTMLElement {
         inp.addEventListener("keydown", (ev) => {
           if (ev.key === "Enter") { ev.preventDefault(); this._submitPanel(byKey); }
           if (ev.key === "Escape") { this._panel = null; this._last = null; this._render(); }
+        });
+      });
+      panel.querySelectorAll("[data-vaccine]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const list = this._panel.vaccines || [];
+          const v = chip.dataset.vaccine;
+          this._panel.vaccines = list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
+          this._last = null;
+          this._render();
         });
       });
       ok.addEventListener("click", () => this._submitPanel(byKey));
