@@ -54,6 +54,9 @@ const TEXTS = {
     today: "Hoje",
     tomorrow: "Amanhã",
     in_days: (n) => `em ${n} dias`,
+    span_d: (n) => (n === 1 ? "1 dia" : `${n} dias`),
+    span_m: (n) => (n === 1 ? "1 mês" : `${n} meses`),
+    span_y: (n) => (n === 1 ? "1 ano" : `${n} anos`),
     overdue: (n) => (n === 1 ? "atrasado 1 dia" : `atrasado ${n} dias`),
     not_found: "Pet não encontrado. Escolha uma entidade do HA Pet Care.",
     entity: "Entidade de qualquer sensor do pet",
@@ -112,6 +115,9 @@ const TEXTS = {
     today: "Today",
     tomorrow: "Tomorrow",
     in_days: (n) => `in ${n} days`,
+    span_d: (n) => (n === 1 ? "1 day" : `${n} days`),
+    span_m: (n) => (n === 1 ? "1 month" : `${n} months`),
+    span_y: (n) => (n === 1 ? "1 year" : `${n} years`),
     overdue: (n) => (n === 1 ? "1 day overdue" : `${n} days overdue`),
     not_found: "Pet not found. Pick an HA Pet Care entity.",
     entity: "Any entity of the pet",
@@ -375,15 +381,26 @@ class HaPetCareCard extends HTMLElement {
     if (filter === "weight") {
       out += this._weightHtml(t, byKey);
     } else if (filter) {
-      const shown = items.filter((it) => it.type === filter).slice(0, limit);
+      const ofType = items.filter((it) => it.type === filter); // newest first
+      const shown = ofType.slice(0, limit);
+      // Gap between two ISO dates: days (<1 month), months (<1 year) or years; same day = "today".
+      const span = (later, earlier) => {
+        const [y1, m1, d1] = later.split("-").map(Number);
+        const [y0, m0, d0] = earlier.split("-").map(Number);
+        const days = Math.round((Date.UTC(y1, m1 - 1, d1) - Date.UTC(y0, m0 - 1, d0)) / 86400000);
+        if (days <= 0) return t.today;
+        const months = (y1 - y0) * 12 + (m1 - m0) - (d1 < d0 ? 1 : 0);
+        if (months < 1) return t.span_d(days);
+        return months < 12 ? t.span_m(months) : t.span_y(Math.floor(months / 12));
+      };
       out += `<div class="timeline">${shown
-        .map((it) => {
-          const days = this._daysUntil(it.date);
+        .map((it, i) => {
+          const prev = ofType[i + 1]; // the previous (older) record of the same type
           const detail = [it.description, it.notes].filter(Boolean).join(" · ");
           return `<div class="hrow" data-entity="${this._esc(it.entityId)}">
             <ha-icon icon="${it.icon}"></ha-icon>
             <div class="htext"><div class="htype">${this._esc(t[`hist_${it.type}`])}</div>${detail ? `<small>${this._esc(detail)}</small>` : ""}</div>
-            <div class="value">${this._esc(this._fmtDate(it.date))}<small>${this._esc(days === 0 ? t.today : days < 0 ? t.ago(-days) : t.in_days(days))}</small></div>
+            <div class="value">${this._esc(this._fmtDate(it.date))}<small>${prev ? this._esc(span(it.date, prev.date)) : ""}</small></div>
           </div>`;
         })
         .join("")}</div>`;

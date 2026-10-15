@@ -70,7 +70,7 @@ HISTORY_LIMIT = 10
 # Automatic next due dates: months after the last record of the type
 VACCINE_INTERVAL_MONTHS = 12
 DEWORMING_INTERVAL_MONTHS = 6
-BATH_INTERVAL_DAYS = 15
+BATH_INTERVAL_MONTHS = 1
 
 # Lovelace card served by the integration
 CARD_URL_PATH = "/ha_pet_care_static/ha-pet-care-card.js"

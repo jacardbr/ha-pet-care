@@ -20,7 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from . import PetCareConfigEntry
 from .const import (
-    BATH_INTERVAL_DAYS,
+    BATH_INTERVAL_MONTHS,
     RECORD_BATH,
     DEWORMING_INTERVAL_MONTHS,
     HISTORY_LIMIT,
@@ -233,12 +233,12 @@ class PetNextDewormerSensor(PetNextCareSensor):
 
 
 class PetNextBathSensor(PetNextCareSensor):
-    """Next bath: fifteen days after the last bath."""
+    """Next bath: one month after the last bath."""
 
     def __init__(self, store: PetCareStore, pet_id: str) -> None:
         """Initialize the sensor."""
         super().__init__(
-            store, pet_id, "next_bath", RECORD_BATH, interval_days=BATH_INTERVAL_DAYS
+            store, pet_id, "next_bath", RECORD_BATH, interval_months=BATH_INTERVAL_MONTHS
         )
 
 
