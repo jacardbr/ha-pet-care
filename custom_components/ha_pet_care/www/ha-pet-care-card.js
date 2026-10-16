@@ -26,10 +26,13 @@ const TEXTS = {
     panel_title_weight: "Registrar peso",
     panel_date: "Data do evento",
     panel_desc: "Vacinas aplicadas",
+    vaccines: ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"],
     panel_weight: "Peso (kg)",
     panel_ok: "Registrar",
     panel_cancel: "Cancelar",
     weight_history: "Evolução do peso",
+    del_title: "Excluir registro",
+    del_confirm: "Toque de novo para excluir",
     hist_vaccine: "Vacina",
     hist_deworming: "Vermífugo",
     hist_bath: "Banho",
@@ -87,10 +90,13 @@ const TEXTS = {
     panel_title_weight: "Log weight",
     panel_date: "Event date",
     panel_desc: "Vaccines given",
+    vaccines: ["V8", "V10", "Rabies", "Kennel cough", "Giardia", "Leishmaniasis"],
     panel_weight: "Weight (kg)",
     panel_ok: "Log it",
     panel_cancel: "Cancel",
     weight_history: "Weight over time",
+    del_title: "Delete record",
+    del_confirm: "Tap again to delete",
     hist_vaccine: "Vaccine",
     hist_deworming: "Dewormer",
     hist_bath: "Bath",
@@ -146,7 +152,6 @@ const ACTIONS = [
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
-const DEFAULT_VACCINES = ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"];
 const DEFAULT_ACTIONS = ACTIONS.map((a) => a.key);
 const HIST = [
   { key: "weight", icon: "mdi:weight-kilogram" },
@@ -273,7 +278,7 @@ class HaPetCareCard extends HTMLElement {
 
   _vaccineOptions() {
     const opts = this._config.vaccine_options;
-    return Array.isArray(opts) && opts.length ? opts.map(String) : DEFAULT_VACCINES;
+    return Array.isArray(opts) && opts.length ? opts.map(String) : tr(this._hass).vaccines;
   }
 
   _panelValid() {
@@ -401,11 +406,21 @@ class HaPetCareCard extends HTMLElement {
             <ha-icon icon="${it.icon}"></ha-icon>
             <div class="htext"><div class="htype">${this._esc(t[`hist_${it.type}`])}</div>${detail ? `<small>${this._esc(detail)}</small>` : ""}</div>
             <div class="value">${this._esc(this._fmtDate(it.date))}<small>${prev ? this._esc(span(it.date, prev.date)) : ""}</small></div>
+            ${this._delBtn(t, "record", it.record_id)}
           </div>`;
         })
         .join("")}</div>`;
     }
     return out || `<div class="empty">${this._esc(t.no_history)}</div>`;
+  }
+
+  // Trash button: the first tap arms it (red), a second tap within 3 s deletes.
+  _delBtn(t, kind, id) {
+    if (!id) return "";
+    const key = `${kind}:${id}`;
+    const armed = this._armedDel === key;
+    const label = armed ? t.del_confirm : t.del_title;
+    return `<button type="button" class="del ${armed ? "armed" : ""}" data-del="${this._esc(key)}" title="${this._esc(label)}" aria-label="${this._esc(label)}"><ha-icon icon="${armed ? "mdi:delete-alert" : "mdi:delete"}"></ha-icon></button>`;
   }
 
   _weightHtml(t, byKey) {
@@ -429,7 +444,11 @@ class HaPetCareCard extends HTMLElement {
       <div class="wtitle"><span>${this._esc(t.weight_history)}</span><span class="value">${this._esc(`${last.weight} ${unit}`)}</span></div>
       <svg viewBox="0 0 ${W} ${H}" class="chart" role="img">${line}${dots}</svg>
       <div class="wdates"><span>${this._esc(this._fmtDate(pts[0].date))}</span><span>${pts.length > 1 ? this._esc(this._fmtDate(last.date)) : ""}</span></div>
-    </div>`;
+    </div>
+    <div class="wlist">${hist
+      .slice(0, Math.max(1, Number(this._config.history_limit) || 15))
+      .map((h) => `<div class="wrow"><span class="wdate">${this._esc(this._fmtDate(h.date))}</span><span class="value">${this._esc(`${h.weight} ${unit}`)}</span>${this._delBtn(t, "weight", h.record_id)}</div>`)
+      .join("")}</div>`;
   }
 
   _row(t, row, byKey) {
@@ -546,6 +565,14 @@ class HaPetCareCard extends HTMLElement {
           .wsec:first-child { border-top: none; padding-top: 0; }
           .wtitle { display: flex; justify-content: space-between; align-items: flex-start; font-weight: 500; color: var(--primary-text-color); }
           .chart { width: 100%; height: auto; margin-top: 6px; }
+          .del { flex: none; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%;
+                 color: var(--secondary-text-color); display: flex; align-items: center; justify-content: center; }
+          .del ha-icon, .hrow .del ha-icon { --mdc-icon-size: 20px; color: inherit; }
+          .del:hover { color: var(--primary-text-color); }
+          .del.armed { color: var(--error-color, #db4437); background: rgba(219, 68, 55, 0.14); }
+          .wlist { margin-top: 8px; }
+          .wrow { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-top: 1px solid var(--divider-color); }
+          .wrow .wdate { flex: 1; }
           .wdates { display: flex; justify-content: space-between; color: var(--secondary-text-color); font-size: 0.8em; }
           .rows { display: flex; flex-direction: column; }
           .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer;
@@ -580,6 +607,7 @@ class HaPetCareCard extends HTMLElement {
     this.querySelectorAll("[data-tab]").forEach((el) => {
       el.addEventListener("click", () => {
         this._tab = el.dataset.tab;
+        this._armedDel = null;
         this._panel = null;
         this._last = null;
         this._render();
@@ -588,6 +616,27 @@ class HaPetCareCard extends HTMLElement {
     this.querySelectorAll("[data-hfilter]").forEach((el) => {
       el.addEventListener("click", () => {
         this._histFilter = el.dataset.hfilter;
+        this._armedDel = null;
+        this._last = null;
+        this._render();
+      });
+    });
+    this.querySelectorAll("[data-del]").forEach((el) => {
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const key = el.dataset.del;
+        clearTimeout(this._delTimer);
+        if (this._armedDel === key) {
+          const [kind, ...rest] = key.split(":");
+          this._armedDel = null;
+          this._hass.callService("ha_pet_care", kind === "weight" ? "remove_weight" : "remove_record", {
+            pet: this._petName(byKey),
+            record_id: rest.join(":"),
+          });
+        } else {
+          this._armedDel = key;
+          this._delTimer = setTimeout(() => { this._armedDel = null; this._last = null; this._render(); }, 3000);
+        }
         this._last = null;
         this._render();
       });
