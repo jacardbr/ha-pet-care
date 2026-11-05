@@ -422,12 +422,13 @@ class HaPetCareCard extends HTMLElement {
     if (action.press) {
       const data = { pet, type: action.type, date: p.date };
       const chosen = this._vaccineOptions().filter((v) => (p.vaccines || []).includes(v));
-      if (action.multi && chosen.length) data.description = chosen.join(", ");
       if (action.text && (p.desc || "").trim()) data.description = p.desc.trim();
       // Send the next date only when it differs from what the sensor computes on its own.
       const next = action.recurring && !p.recurring ? "" : p.next;
       if (next && next !== this._builtinNext(action.type, p.date)) data.next_due = next;
-      this._hass.callService("ha_pet_care", "add_record", data);
+      // Each vaccine is its own record, so the history lists (and deletes) them one by one.
+      if (action.multi && chosen.length) chosen.forEach((v) => this._hass.callService("ha_pet_care", "add_record", { ...data, description: v }));
+      else this._hass.callService("ha_pet_care", "add_record", data);
     } else {
       this._hass.callService("ha_pet_care", "add_weight", { pet, weight: Number(p.weight), date: p.date });
     }
@@ -474,7 +475,12 @@ class HaPetCareCard extends HTMLElement {
       const entityId = byKey[h.key];
       const list = entityId ? hass.states[entityId]?.attributes?.history : null;
       if (!Array.isArray(list)) continue;
-      for (const rec of list) items.push({ ...rec, type: h.key, icon: h.icon, entityId });
+      for (const rec of list) {
+        // Older cards saved several vaccines in one record ("V10, Antirrábica"): one row each.
+        const names = h.key === "vaccine" && rec.description ? rec.description.split(",").map((v) => v.trim()).filter(Boolean) : [];
+        if (names.length > 1) names.forEach((name) => items.push({ ...rec, description: name, type: h.key, icon: h.icon, entityId }));
+        else items.push({ ...rec, type: h.key, icon: h.icon, entityId });
+      }
     }
     items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     const weightList = types.includes("weight") && byKey.weight ? hass.states[byKey.weight]?.attributes?.history : null;
@@ -512,7 +518,10 @@ class HaPetCareCard extends HTMLElement {
       };
       out += `<div class="timeline">${shown
         .map((it, i) => {
-          const prev = ofType[i + 1]; // the previous (older) record of the same type
+          // The previous (older) record of the same type; for vaccines, the previous dose of the same vaccine.
+          const prev = it.type === "vaccine" && it.description
+            ? ofType.slice(i + 1).find((o) => o.description === it.description)
+            : ofType[i + 1];
           const detail = [it.description, it.notes].filter(Boolean).join(" · ");
           return `<div class="hrow" data-entity="${this._esc(it.entityId)}">
             <ha-icon icon="${it.icon}"></ha-icon>
