@@ -368,9 +368,9 @@ class HaPetCareCard extends HTMLElement {
       <div class="ptitle">${this._esc(title)}</div>
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
+      ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
-      ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
       ${this._showNext(action) ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
       <div class="pbtns">
         <button class="pbtn" data-pcancel>${this._esc(t.panel_cancel)}</button>
@@ -653,7 +653,7 @@ class HaPetCareCard extends HTMLElement {
           .vchip.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
           .panel input.w { width: 6.5em; }
           .panel label.grow { flex: 1 0 100%; }
-          .panel label.chk { flex-direction: row; align-items: center; gap: 6px; font-size: 0.9em; color: var(--primary-text-color); cursor: pointer; }
+          .panel label.chk { flex: 1 0 100%; flex-direction: row; align-items: center; gap: 6px; font-size: 0.9em; color: var(--primary-text-color); cursor: pointer; }
           .panel label.chk input { min-width: auto; width: 18px; height: 18px; margin: 0; }
           .pbtns { display: flex; gap: 8px; margin-left: auto; }
           .pbtn { font: inherit; padding: 7px 14px; border-radius: 16px; cursor: pointer;
