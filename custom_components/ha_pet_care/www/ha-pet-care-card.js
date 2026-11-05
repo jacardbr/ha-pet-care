@@ -63,7 +63,12 @@ const TEXTS = {
     act_title_weight: "Registrar peso",
     show_photo: "Mostrar foto",
     photo_upload: "Trocar foto",
-    photo_hint: "JPG, PNG, WEBP ou GIF. A foto do pet é trocada assim que o envio termina.",
+    photo_hint: "Escolha uma imagem e ajuste o enquadramento antes de salvar.",
+    photo_crop_hint: "Arraste para posicionar e use o controle para aproximar.",
+    photo_zoom: "Zoom",
+    photo_save: "Salvar foto",
+    photo_cancel: "Cancelar",
+    photo_bad: "Não foi possível abrir essa imagem. Use JPG, PNG, WEBP ou GIF.",
     photo_sending: "Trocando a foto…",
     photo_done: "Foto atualizada.",
     photo_error: (m) => `Não foi possível trocar a foto: ${m}`,
@@ -150,7 +155,12 @@ const TEXTS = {
     act_title_weight: "Log weight",
     show_photo: "Show photo",
     photo_upload: "Change photo",
-    photo_hint: "JPG, PNG, WEBP or GIF. The pet's photo is replaced as soon as the upload finishes.",
+    photo_hint: "Pick an image and adjust the framing before saving.",
+    photo_crop_hint: "Drag to position and use the slider to zoom in.",
+    photo_zoom: "Zoom",
+    photo_save: "Save photo",
+    photo_cancel: "Cancel",
+    photo_bad: "Could not open this image. Use JPG, PNG, WEBP or GIF.",
     photo_sending: "Changing the photo…",
     photo_done: "Photo updated.",
     photo_error: (m) => `Could not change the photo: ${m}`,
@@ -202,6 +212,8 @@ const ACTIONS = [
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
 // Default gap to the next event, in months (same as the integration's sensors).
+const CROP_VIEW = 240; // framing editor size (px)
+const CROP_OUT = 512; // saved photo size (px)
 const NEXT_MONTHS = { vaccine: 12, deworming: 6, bath: 1, grooming: 6, vet_visit: 12 };
 // Event types whose period can be set in the card editor.
 const INTERVAL_TYPES = ["vaccine", "deworming", "remedy", "bath", "grooming", "vet_visit"];
@@ -947,20 +959,173 @@ class HaPetCareCardEditor extends HTMLElement {
     return LISTS[name].label(t, key);
   }
 
-  // Replace the pet's photo with a file uploaded by the file selector (its value is the upload's file_id).
-  async _setPhoto(fileId) {
-    const t = tr(this._hass);
+  // ---------------------------------------------------------------- photo
+  _photoEntity() {
     const deviceId = this._hass.entities?.[this._config.entity]?.device_id;
-    const pet = this._hass.devices?.[deviceId]?.name || this._config.name || "";
+    if (!deviceId) return null;
+    const ent = Object.values(this._hass.entities).find(
+      (e) => e.device_id === deviceId && e.platform === "ha_pet_care" && e.translation_key === "photo"
+    );
+    return ent ? this._hass.states[ent.entity_id] : null;
+  }
+
+  _btn(attr, label, primary = false) {
+    if (customElements.get("ha-button")) {
+      return `<ha-button ${attr} ${primary ? 'variant="brand" appearance="filled" raised unelevated' : 'appearance="plain"'}>${label}</ha-button>`;
+    }
+    return `<button type="button" ${attr}>${label}</button>`;
+  }
+
+  // The photo block of the Display section: current photo + "Change photo", or the framing editor.
+  _renderPhoto() {
+    if (!this._photoBox) return;
+    const t = tr(this._hass);
+    const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const c = this._crop;
+    const pic = this._photoEntity()?.attributes?.entity_picture;
+    const status = this._photoStatus || (c ? t.photo_crop_hint : t.photo_hint);
+    const html = c
+      ? `<div class="crop">
+          <canvas class="cropc" width="${CROP_VIEW * 2}" height="${CROP_VIEW * 2}"></canvas>
+          <label class="zoom">${esc(t.photo_zoom)}<input type="range" min="1" max="4" step="0.01" value="${c.zoom}" data-zoom></label>
+          <div class="pbtns">${this._btn("data-pcancel", esc(t.photo_cancel))}${this._btn("data-psave", esc(t.photo_save), true)}</div>
+        </div><p class="phint">${esc(status)}</p>`
+      : `<div class="pbox">
+          ${pic ? `<img class="pcur" src="${esc(pic)}" alt="">` : `<div class="pcur"></div>`}
+          ${this._btn("data-ppick", esc(t.photo_upload))}
+          <input type="file" accept="image/*" hidden data-pfile>
+        </div><p class="phint">${esc(status)}</p>`;
+    if (html === this._photoHtml) return;
+    this._photoHtml = html;
+    this._photoBox.innerHTML = html;
+    const box = this._photoBox;
+    if (!c) {
+      const file = box.querySelector("[data-pfile]");
+      box.querySelector("[data-ppick]").addEventListener("click", () => file.click());
+      file.addEventListener("change", () => file.files?.[0] && this._startCrop(file.files[0]));
+      return;
+    }
+    const canvas = box.querySelector(".cropc");
+    this._drawCrop(canvas, CROP_VIEW * 2);
+    box.querySelector("[data-zoom]").addEventListener("input", (ev) => {
+      c.zoom = Number(ev.target.value);
+      this._clampCrop();
+      this._drawCrop(canvas, CROP_VIEW * 2);
+    });
+    canvas.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      canvas.setPointerCapture?.(ev.pointerId);
+      const rect = canvas.getBoundingClientRect();
+      const k = CROP_VIEW / rect.width; // screen px -> crop px
+      let last = { x: ev.clientX, y: ev.clientY };
+      const move = (e) => {
+        c.ox += (e.clientX - last.x) * k;
+        c.oy += (e.clientY - last.y) * k;
+        last = { x: e.clientX, y: e.clientY };
+        this._clampCrop();
+        this._drawCrop(canvas, CROP_VIEW * 2);
+      };
+      const up = () => { canvas.removeEventListener("pointermove", move); canvas.removeEventListener("pointerup", up); canvas.removeEventListener("pointercancel", up); };
+      canvas.addEventListener("pointermove", move);
+      canvas.addEventListener("pointerup", up);
+      canvas.addEventListener("pointercancel", up);
+    });
+    canvas.addEventListener("wheel", (ev) => {
+      ev.preventDefault();
+      c.zoom = Math.min(4, Math.max(1, c.zoom * (ev.deltaY < 0 ? 1.08 : 1 / 1.08)));
+      box.querySelector("[data-zoom]").value = c.zoom;
+      this._clampCrop();
+      this._drawCrop(canvas, CROP_VIEW * 2);
+    }, { passive: false });
+    box.querySelector("[data-pcancel]").addEventListener("click", () => this._endCrop());
+    box.querySelector("[data-psave]").addEventListener("click", () => this._saveCrop());
+  }
+
+  _startCrop(file) {
+    const t = tr(this._hass);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      this._crop = { img, url, zoom: 1, ox: 0, oy: 0 };
+      this._photoStatus = null;
+      this._renderPhoto();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      this._photoStatus = t.photo_bad;
+      this._renderPhoto();
+    };
+    img.src = url;
+  }
+
+  _endCrop() {
+    if (this._crop) URL.revokeObjectURL(this._crop.url);
+    this._crop = null;
+    this._renderPhoto();
+  }
+
+  // Image size in crop px: it always covers the square, so the photo never has empty borders.
+  _cropSize() {
+    const { img, zoom } = this._crop;
+    const base = Math.max(CROP_VIEW / img.naturalWidth, CROP_VIEW / img.naturalHeight);
+    return { w: img.naturalWidth * base * zoom, h: img.naturalHeight * base * zoom };
+  }
+
+  _clampCrop() {
+    const c = this._crop;
+    const { w, h } = this._cropSize();
+    const mx = (w - CROP_VIEW) / 2, my = (h - CROP_VIEW) / 2;
+    c.ox = Math.min(mx, Math.max(-mx, c.ox));
+    c.oy = Math.min(my, Math.max(-my, c.oy));
+  }
+
+  // Draw the framed photo on a canvas of `size` px; `preview` adds the round guide the card uses.
+  _drawCrop(canvas, size, preview = true) {
+    const c = this._crop;
+    const ctx = canvas.getContext("2d");
+    const k = size / CROP_VIEW;
+    const { w, h } = this._cropSize();
+    ctx.clearRect(0, 0, size, size);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(c.img, ((CROP_VIEW - w) / 2 + c.ox) * k, ((CROP_VIEW - h) / 2 + c.oy) * k, w * k, h * k);
+    if (!preview) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.beginPath();
+    ctx.rect(0, 0, size, size);
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2, true);
+    ctx.fill("evenodd");
+    ctx.restore();
+  }
+
+  async _saveCrop() {
+    const t = tr(this._hass);
+    const out = document.createElement("canvas");
+    out.width = out.height = CROP_OUT;
+    this._drawCrop(out, CROP_OUT, false);
     this._photoStatus = t.photo_sending;
-    this._render();
+    this._photoHtml = null;
+    this._renderPhoto();
+    this._photoBox.querySelectorAll("[data-psave],[data-pcancel]").forEach((b) => (b.disabled = true));
     try {
-      await this._hass.callService("ha_pet_care", "set_photo", { pet, file_id: fileId });
+      const blob = await new Promise((resolve, reject) =>
+        out.toBlob((b) => (b ? resolve(b) : reject(new Error("canvas"))), "image/jpeg", 0.9)
+      );
+      const form = new FormData();
+      form.append("file", blob, "photo.jpg");
+      const resp = await this._hass.fetchWithAuth("/api/file_upload", { method: "POST", body: form });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const { file_id } = await resp.json();
+      const deviceId = this._hass.entities?.[this._config.entity]?.device_id;
+      const pet = this._hass.devices?.[deviceId]?.name || this._config.name || "";
+      await this._hass.callService("ha_pet_care", "set_photo", { pet, file_id });
       this._photoStatus = t.photo_done;
+      this._endCrop();
     } catch (err) {
       this._photoStatus = t.photo_error(err?.message || String(err));
+      this._photoHtml = null;
+      this._renderPhoto();
     }
-    this._render();
   }
 
   _renderLists() {
@@ -1062,11 +1227,12 @@ class HaPetCareCardEditor extends HTMLElement {
   _render() {
     if (!this._hass || !this._config) return;
     if (!this._form) {
+      // Layout: entity form, Display section (its own form + the photo block), the other sections, the lists.
+      this._formTop = document.createElement("ha-form");
+      this._formDisplay = document.createElement("ha-form");
       this._form = document.createElement("ha-form");
-      this._form.addEventListener("value-changed", (ev) => {
-        const { fields, actions, history_types, photo_upload, ...rest } = ev.detail.value;
-        // A new photo is sent straight to the integration; it is not part of the card config.
-        if (photo_upload) this._setPhoto(photo_upload);
+      const onValue = (ev) => {
+        const { fields, actions, history_types, ...rest } = ev.detail.value;
         const config = { ...this._config, ...rest };
         // Lists are saved as typed (blank rows and spaces kept) so "add" and typing work; the card trims them on use.
         // The vaccine list stays out of the config while it matches the language default.
@@ -1082,10 +1248,42 @@ class HaPetCareCardEditor extends HTMLElement {
           else config[`interval_${type}`] = Math.max(0, Math.round(Number(v)));
         }
         this._emit(config);
-      });
+      };
+      [this._formTop, this._formDisplay, this._form].forEach((f) => f.addEventListener("value-changed", onValue));
+      const style = document.createElement("style");
+      style.textContent = `
+        .dsec { display: block; margin-top: 24px; --expansion-panel-content-padding: 0;
+                border-radius: var(--ha-border-radius-md, 12px); --ha-card-border-radius: var(--ha-border-radius-md, 12px); }
+        details.dsec { border: 1px solid var(--divider-color); padding: 0 12px; }
+        details.dsec summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
+        .dsec .dinner { padding: 12px; }
+        details.dsec .dinner { padding: 0 0 12px; }
+        .main-form { display: block; margin-top: 24px; }
+        .photo { margin-top: 24px; }
+        .pbox { display: flex; align-items: center; gap: 16px; }
+        .pcur { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--secondary-background-color); }
+        .crop { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .cropc { width: ${CROP_VIEW}px; height: ${CROP_VIEW}px; max-width: 100%; border-radius: 8px; cursor: grab; touch-action: none;
+                 background: var(--secondary-background-color); }
+        .zoom { display: flex; align-items: center; gap: 8px; width: 100%; max-width: ${CROP_VIEW}px; color: var(--secondary-text-color); }
+        .zoom input { flex: 1; }
+        .pbtns { display: flex; gap: 8px; justify-content: flex-end; width: 100%; max-width: ${CROP_VIEW}px; }
+        .phint { color: var(--secondary-text-color); margin: 8px 0 0; font-size: 0.875em; }
+      `;
+      const panel = customElements.get("ha-expansion-panel");
+      this._dispSec = document.createElement(panel ? "ha-expansion-panel" : "details");
+      this._dispSec.className = "dsec";
+      if (panel) this._dispSec.outlined = true;
+      const inner = document.createElement("div");
+      inner.className = "dinner";
+      this._photoBox = document.createElement("div");
+      this._photoBox.className = "photo";
+      inner.append(this._formDisplay, this._photoBox);
+      if (!panel) this._dispSec.append(document.createElement("summary"));
+      this._dispSec.append(inner);
+      this._form.className = "main-form";
       this._lists = document.createElement("div");
-      this.appendChild(this._form);
-      this.appendChild(this._lists);
+      this.append(style, this._formTop, this._dispSec, this._form, this._lists);
     }
     // Once per editor opening, add remedies already logged to the saved list (so they can be edited or removed).
     if (!this._remedySynced && this._config.entity && this._hass.entities?.[this._config.entity]) {
@@ -1098,23 +1296,21 @@ class HaPetCareCardEditor extends HTMLElement {
       }
     }
     const t = tr(this._hass);
-    this._form.hass = this._hass;
-    this._form.data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, vaccine_options: t.vaccines, ...this._config };
+    const data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, vaccine_options: t.vaccines, ...this._config };
+    for (const f of [this._formTop, this._formDisplay, this._form]) {
+      f.hass = this._hass;
+      f.data = data;
+    }
+    if (this._dispSec.tagName === "DETAILS") this._dispSec.querySelector("summary").textContent = t.sec_display;
+    else this._dispSec.header = t.sec_display;
+    this._formTop.schema = [{ name: "entity", required: true, selector: { entity: { integration: "ha_pet_care" } } }];
+    this._formDisplay.schema = [
+      { name: "name", selector: { text: {} } },
+      { name: "show_photo", selector: { boolean: {} } },
+      { name: "show_name", selector: { boolean: {} } },
+      { name: "ask_date", selector: { boolean: {} } },
+    ];
     this._form.schema = [
-      { name: "entity", required: true, selector: { entity: { integration: "ha_pet_care" } } },
-      {
-        name: "sec_display",
-        type: "expandable",
-        flatten: true,
-        title: t.sec_display,
-        schema: [
-          { name: "name", selector: { text: {} } },
-          { name: "show_photo", selector: { boolean: {} } },
-          { name: "photo_upload", selector: { file: { accept: "image/*" } } },
-          { name: "show_name", selector: { boolean: {} } },
-          { name: "ask_date", selector: { boolean: {} } },
-        ],
-      },
       {
         name: "sec_logging",
         type: "expandable",
@@ -1149,17 +1345,16 @@ class HaPetCareCardEditor extends HTMLElement {
         schema: INTERVAL_TYPES.map((type) => ({ name: `interval_${type}`, selector: { number: { min: 0, max: 3650, mode: "box", unit_of_measurement: "d" } } })),
       },
     ];
-    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, photo_upload: t.photo_upload, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, remedy_options: t.remedy_options, sec_remedies: t.sec_remedies, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
+    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, remedy_options: t.remedy_options, sec_remedies: t.sec_remedies, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
     for (const type of INTERVAL_TYPES) {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
-    this._form.computeLabel = (s) => labels[s.name] || s.name;
     // ha-form shows an expandable section's helper as its first line.
-    this._form.computeHelper = (s) => {
-      if (s.name === "intervals") return t.intervals_hint;
-      if (s.name === "photo_upload") return this._photoStatus || t.photo_hint;
-      return undefined;
-    };
+    for (const f of [this._formTop, this._formDisplay, this._form]) {
+      f.computeLabel = (s) => labels[s.name] || s.name;
+      f.computeHelper = (s) => (s.name === "intervals" ? t.intervals_hint : undefined);
+    }
+    this._renderPhoto();
     this._renderLists();
   }
 }
