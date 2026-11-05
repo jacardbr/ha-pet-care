@@ -152,7 +152,7 @@ The integration already includes the **HA Pet Care** card (no extra installation
 
 <p align="center"><img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/summary-light.png" alt="Summary tab" width="340"></p>
 
-**2. Logging an event.** Tap an action button to open the panel. The date is pre-filled with today; change it if the event happened on another day (future dates are not accepted). For vaccines, tap the vaccines that were given (you can pick more than one): they are saved as a single record, such as "V10, Rabies". For remedies, type the remedy name; it is saved as the record description. For weight, the panel also has a weight field, pre-filled with the last value. For vaccines, dewormers and baths, the panel also shows the **Next date**, suggested from the event date (1 year, 6 months and 1 month later); change it if the vet set another date. Tap **Log it** to save. The vaccine list follows your Home Assistant language, and you can customize it with `vaccine_options` in the card YAML (for example `vaccine_options: [V10, Rabies]`). To go back to one-tap logging, turn off **Ask for the date when logging** (`ask_date: false`).
+**2. Logging an event.** Tap an action button to open the panel. The date is pre-filled with today; change it if the event happened on another day (future dates are not accepted). For vaccines, tap the vaccines that were given (you can pick more than one): they are saved as a single record, such as "V10, Rabies". For remedies, type the remedy name; it is saved as the record description. For weight, the panel also has a weight field, pre-filled with the last value. For vaccines, dewormers and baths, the panel also shows the **Next date**, suggested from the event date (1 year, 6 months and 1 month later); change it if the vet set another date. Tap **Log it** to save. The vaccine list follows your Home Assistant language, and you can customize it with `vaccine_options` in the card YAML (for example `vaccine_options: [V10, Rabies]`). In the card editor you can edit the vaccine list and, under **Time until the next event**, set how many days after the event the next date is suggested for each type (leave empty for the default: 1 year for vaccines, 6 months for dewormers, 1 month for baths; 0 hides the field). Setting a period for grooming, vet visits or remedies adds the next-date field to their panel too. The device-screen buttons keep using the default periods. To go back to one-tap logging, turn off **Ask for the date when logging** (`ask_date: false`).
 
 <p align="center"><img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/vaccine-panel.png" alt="Vaccine logging panel with selected vaccines" width="340"></p>
 
@@ -187,7 +187,9 @@ entity: image.mel_photo
 # ask_date: true     # false = log with one tap, using today's date
 # show_history: true
 # history_limit: 15
-# vaccine_options: [V10, Rabies]
+# vaccine_options: [V10, Rabies]   # also editable in the card editor
+# interval_vaccine: 365   # days until the suggested next date; also: interval_deworming,
+# interval_bath: 15       # interval_remedy, interval_grooming, interval_vet_visit (0 = no suggestion)
 actions:      # optional; default: all (list order is the order on the card)
   - add_vaccine
   - add_deworming
