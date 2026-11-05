@@ -27,6 +27,7 @@ const TEXTS = {
     panel_title_weight: "Registrar peso",
     panel_date: "Data do evento",
     panel_next: "Próxima data",
+    panel_recurring: "Recorrente",
     panel_desc: "Vacinas aplicadas",
     vaccines: ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"],
     panel_weight: "Peso (kg)",
@@ -101,6 +102,7 @@ const TEXTS = {
     panel_title_weight: "Log weight",
     panel_date: "Event date",
     panel_next: "Next date",
+    panel_recurring: "Recurring",
     panel_desc: "Vaccines given",
     vaccines: ["V8", "V10", "Rabies", "Kennel cough", "Giardia", "Leishmaniasis"],
     panel_weight: "Weight (kg)",
@@ -168,7 +170,7 @@ const ROWS = [
 const ACTIONS = [
   { key: "add_vaccine", type: "vaccine", multi: true, icon: "mdi:needle", press: true },
   { key: "add_deworming", type: "deworming", icon: "mdi:snake", press: true },
-  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true, text: "panel_remedy" },
+  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true, text: "panel_remedy", recurring: true },
   { key: "add_bath", type: "bath", icon: "mdi:shower-head", press: true },
   { key: "add_grooming", type: "grooming", icon: "mdi:content-cut", press: true },
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
@@ -334,6 +336,11 @@ class HaPetCareCard extends HTMLElement {
     return months && /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? this._addMonths(date, months) : "";
   }
 
+  // Recurring types (remedy) show the next date only when the user ticks "Recurring".
+  _showNext(action) {
+    return action.recurring ? Boolean(this._panel?.recurring) : this._hasNext(action.type);
+  }
+
   _hasNext(type) {
     const days = this._intervalDays(type);
     return days === null ? Boolean(NEXT_MONTHS[type]) : days > 0;
@@ -363,7 +370,8 @@ class HaPetCareCard extends HTMLElement {
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
-      ${this._hasNext(action.type) ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
+      ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
+      ${this._showNext(action) ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
       <div class="pbtns">
         <button class="pbtn" data-pcancel>${this._esc(t.panel_cancel)}</button>
         <button class="pbtn ok" data-pok>${this._esc(t.panel_ok)}</button>
@@ -385,7 +393,9 @@ class HaPetCareCard extends HTMLElement {
       const w = Number(p.weight);
       return dateOk && w > 0 && w <= 200;
     }
-    const nextOk = !p.next || (/^\d{4}-\d{2}-\d{2}$/.test(p.next) && p.next >= p.date);
+    const nextOk = action?.recurring && p.recurring
+      ? /^\d{4}-\d{2}-\d{2}$/.test(p.next || "") && p.next >= p.date
+      : !p.next || (/^\d{4}-\d{2}-\d{2}$/.test(p.next) && p.next >= p.date);
     return dateOk && nextOk;
   }
 
@@ -415,7 +425,8 @@ class HaPetCareCard extends HTMLElement {
       if (action.multi && chosen.length) data.description = chosen.join(", ");
       if (action.text && (p.desc || "").trim()) data.description = p.desc.trim();
       // Send the next date only when it differs from what the sensor computes on its own.
-      if (p.next && p.next !== this._builtinNext(action.type, p.date)) data.next_due = p.next;
+      const next = action.recurring && !p.recurring ? "" : p.next;
+      if (next && next !== this._builtinNext(action.type, p.date)) data.next_due = next;
       this._hass.callService("ha_pet_care", "add_record", data);
     } else {
       this._hass.callService("ha_pet_care", "add_weight", { pet, weight: Number(p.weight), date: p.date });
@@ -585,9 +596,9 @@ class HaPetCareCard extends HTMLElement {
       </div>`;
   }
 
-  _render() {
+  _render(force = false) {
     if (!this._config || !this._hass) return;
-    if (this._panel && this.querySelector(".panel input:focus")) return; // never rebuild while the user types
+    if (!force && this._panel && this.querySelector(".panel input:not([type=checkbox]):focus")) return; // never rebuild while the user types
     const hass = this._hass;
     const t = tr(hass);
     const { deviceId, byKey } = this._siblings();
@@ -642,6 +653,8 @@ class HaPetCareCard extends HTMLElement {
           .vchip.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
           .panel input.w { width: 6.5em; }
           .panel label.grow { flex: 1 0 100%; }
+          .panel label.chk { flex-direction: row; align-items: center; gap: 6px; font-size: 0.9em; color: var(--primary-text-color); cursor: pointer; }
+          .panel label.chk input { min-width: auto; width: 18px; height: 18px; margin: 0; }
           .pbtns { display: flex; gap: 8px; margin-left: auto; }
           .pbtn { font: inherit; padding: 7px 14px; border-radius: 16px; cursor: pointer;
                   border: 1px solid var(--divider-color); background: var(--secondary-background-color); color: var(--primary-text-color); }
@@ -770,6 +783,17 @@ class HaPetCareCard extends HTMLElement {
           if (ev.key === "Escape") { this._panel = null; this._last = null; this._render(); }
         });
       });
+      const rec = panel.querySelector("[data-precurring]");
+      if (rec) {
+        rec.addEventListener("change", () => {
+          this._panel.recurring = rec.checked;
+          const type = ACTIONS.find((a) => a.key === this._panel.key)?.type;
+          if (rec.checked && !this._panel.next) this._panel.next = this._defaultNext(type, this._panel.date);
+          this._last = null;
+          this._render(true);
+          if (rec.checked) this.querySelector('.panel [data-pfield="next"]')?.focus();
+        });
+      }
       panel.querySelectorAll("[data-vaccine]").forEach((chip) => {
         chip.addEventListener("click", () => {
           const list = this._panel.vaccines || [];
