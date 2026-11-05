@@ -30,6 +30,7 @@ const TEXTS = {
     panel_desc: "Vacinas aplicadas",
     vaccines: ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"],
     panel_weight: "Peso (kg)",
+    panel_remedy: "Nome do remédio",
     panel_ok: "Registrar",
     panel_cancel: "Cancelar",
     weight_history: "Evolução do peso",
@@ -98,6 +99,7 @@ const TEXTS = {
     panel_desc: "Vaccines given",
     vaccines: ["V8", "V10", "Rabies", "Kennel cough", "Giardia", "Leishmaniasis"],
     panel_weight: "Weight (kg)",
+    panel_remedy: "Remedy name",
     panel_ok: "Log it",
     panel_cancel: "Cancel",
     weight_history: "Weight over time",
@@ -156,10 +158,10 @@ const ROWS = [
 const ACTIONS = [
   { key: "add_vaccine", type: "vaccine", multi: true, icon: "mdi:needle", press: true },
   { key: "add_deworming", type: "deworming", icon: "mdi:snake", press: true },
+  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true, text: "panel_remedy" },
   { key: "add_bath", type: "bath", icon: "mdi:shower-head", press: true },
   { key: "add_grooming", type: "grooming", icon: "mdi:content-cut", press: true },
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
-  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true },
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
 // Default gap to the next event, in months (same as the integration's sensors).
@@ -169,11 +171,11 @@ const HIST = [
   { key: "weight", icon: "mdi:weight-kilogram" },
   { key: "vaccine", icon: "mdi:needle" },
   { key: "deworming", icon: "mdi:snake" },
+  { key: "remedy", icon: "mdi:pill" },
   { key: "bath", icon: "mdi:shower-head" },
   { key: "grooming", icon: "mdi:content-cut" },
   { key: "vet_visit", icon: "mdi:stethoscope" },
   { key: "exam", icon: "mdi:clipboard-pulse" },
-  { key: "remedy", icon: "mdi:pill" },
 ];
 const DEFAULT_HIST = HIST.map((h) => h.key);
 const DEFAULT_FIELDS = ["age", "next_vaccine", "next_dewormer", "next_bath"];
@@ -187,6 +189,33 @@ const LISTS = {
   actions: { items: ACTIONS, defaults: DEFAULT_ACTIONS, sortable: true, label: (t, k) => t[`act_${k}`] },
   fields: { items: ROWS, defaults: DEFAULT_FIELDS, sortable: true, label: (t, k) => t[k] },
   history_types: { items: HIST, defaults: DEFAULT_HIST, sortable: true, label: (t, k) => t[`hist_${k}`] },
+};
+
+// Lists saved by an older card version get the items added since then, so new
+// actions show up on existing cards. The editor saves CARD_VERSION, after which
+// an item missing from the list means the user turned it off.
+const CARD_VERSION = 2;
+const ADDED_IN = { 2: { actions: ["add_remedy"], history_types: ["remedy"] } };
+
+const resolveList = (config, name) => {
+  const { items, defaults } = LISTS[name];
+  if (!Array.isArray(config[name])) return defaults;
+  const list = config[name].filter((k) => items.some((i) => i.key === k));
+  const from = Number(config.card_version) || 1;
+  for (let v = from + 1; v <= CARD_VERSION; v++) {
+    for (const key of ADDED_IN[v]?.[name] || []) {
+      if (list.includes(key)) continue;
+      // Insert after the nearest earlier item of the default order that is in the list.
+      const order = items.map((i) => i.key);
+      let at = 0;
+      for (let i = order.indexOf(key) - 1; i >= 0; i--) {
+        const pos = list.indexOf(order[i]);
+        if (pos >= 0) { at = pos + 1; break; }
+      }
+      list.splice(at, 0, key);
+    }
+  }
+  return list;
 };
 
 class HaPetCareCard extends HTMLElement {
@@ -244,7 +273,7 @@ class HaPetCareCard extends HTMLElement {
   }
 
   _actionsHtml(t, byKey) {
-    const wanted = Array.isArray(this._config.actions) ? this._config.actions : DEFAULT_ACTIONS;
+    const wanted = resolveList(this._config, "actions");
     const items = wanted.map((k) => ACTIONS.find((a) => a.key === k)).filter((a) => a && byKey[a.key]);
     if (!items.length) return "";
     const buttons = items
@@ -295,6 +324,7 @@ class HaPetCareCard extends HTMLElement {
     return `<div class="panel" data-panel="${action.key}">
       <div class="ptitle">${this._esc(title)}</div>
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
+      ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
       ${NEXT_MONTHS[action.type] ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
@@ -335,7 +365,7 @@ class HaPetCareCard extends HTMLElement {
     this._last = null;
     this._render();
     const first = this.querySelector(".panel input");
-    if (first && key === "log_weight") first.focus();
+    if (first && (key === "log_weight" || ACTIONS.find((a) => a.key === key)?.text)) first.focus();
   }
 
   _submitPanel(byKey) {
@@ -347,6 +377,7 @@ class HaPetCareCard extends HTMLElement {
       const data = { pet, type: action.type, date: p.date };
       const chosen = this._vaccineOptions().filter((v) => (p.vaccines || []).includes(v));
       if (action.multi && chosen.length) data.description = chosen.join(", ");
+      if (action.text && (p.desc || "").trim()) data.description = p.desc.trim();
       // Send the next date only when it differs from the default, so the sensor keeps computing it.
       if (p.next && p.next !== this._defaultNext(action.type, p.date)) data.next_due = p.next;
       this._hass.callService("ha_pet_care", "add_record", data);
@@ -388,7 +419,7 @@ class HaPetCareCard extends HTMLElement {
 
   _historyHtml(t, byKey) {
     const hass = this._hass;
-    const types = Array.isArray(this._config.history_types) ? this._config.history_types : DEFAULT_HIST;
+    const types = resolveList(this._config, "history_types");
     const limit = Math.max(1, Number(this._config.history_limit) || 15);
     const items = [];
     for (const h of HIST) {
@@ -574,6 +605,7 @@ class HaPetCareCard extends HTMLElement {
                    color: var(--primary-text-color); }
           .vchip.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
           .panel input.w { width: 6.5em; }
+          .panel label.grow { flex: 1 0 100%; }
           .pbtns { display: flex; gap: 8px; margin-left: auto; }
           .pbtn { font: inherit; padding: 7px 14px; border-radius: 16px; cursor: pointer;
                   border: 1px solid var(--divider-color); background: var(--secondary-background-color); color: var(--primary-text-color); }
@@ -749,14 +781,14 @@ class HaPetCareCardEditor extends HTMLElement {
   }
 
   _emit(config) {
+    config = { ...config, card_version: CARD_VERSION };
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { bubbles: true, composed: true, detail: { config } }));
     this._renderLists();
   }
 
-  _selected(name, items, defaults) {
-    const raw = Array.isArray(this._config[name]) ? this._config[name] : defaults;
-    return raw.filter((k) => items.some((i) => i.key === k));
+  _selected(name) {
+    return resolveList(this._config, name);
   }
 
   _listHtml(name, items, defaults, t, label) {
