@@ -148,7 +148,7 @@ The integration already includes the **HA Pet Care** card (no extra installation
 1. Restart Home Assistant after updating, and refresh your browser (Ctrl+F5).
 2. On a dashboard in edit mode, click **Add card** and search for **HA Pet Care**.
 3. Pick any entity of the pet (for example, the photo). The card finds the others by itself.
-4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit, exam and remedy), whether to show the photo and the name, change the pet's photo (**Change photo** in the **Display** section), and which **actions** and **history filters** to show.
+4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit, exam and remedy), whether to show the photo and the name, change the pet's photo (**Change photo** in the **Display** section: pick an image, drag and zoom to frame it inside the round guide, then **Save photo**), and which **actions** and **history filters** to show.
 5. In the **Actions**, **Fields** and **History to show** lists, drag by the ☰ handle to change the order; the order of the checked items is the order shown on the card.
 
 ### Using the card
