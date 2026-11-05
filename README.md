@@ -229,6 +229,10 @@ history_types:   # optional; order of the History filters
 - Data in `.storage/ha_pet_care.<entry_id>`; photos in `<config>/ha_pet_care_photos/`
 - Checks on GitHub Actions: `hacs/action` and `hassfest`
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+
 ## Support
 
 If HA Pet Care is useful to you, you can support its development:
