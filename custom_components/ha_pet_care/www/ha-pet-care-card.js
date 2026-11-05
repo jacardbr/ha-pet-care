@@ -1140,10 +1140,12 @@ class HaPetCareCardEditor extends HTMLElement {
         details.sec summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
         .sec .inner { padding: 12px; }
         details.sec .inner { padding: 0 0 12px; }
-        .hint { color: var(--secondary-text-color); margin: 0 0 12px; }
+        /* Like ha-form inside a section: 12px padding, 24px below the description, 4px between list rows. */
+        .hint { color: var(--secondary-text-color); margin: 0 0 24px; }
+        .list { display: flex; flex-direction: column; gap: 4px; }
         .item { display: flex; align-items: center; gap: 8px; padding: 2px 8px 2px 4px; border-radius: 8px;
                 background: var(--card-background-color); border: 1px solid transparent; }
-        .item.on { border-color: var(--divider-color); margin-bottom: 4px; }
+        .item.on { border-color: var(--divider-color); }
         .item.dragging { opacity: 0.85; box-shadow: 0 2px 8px rgba(0,0,0,.3); position: relative; z-index: 2;
                          border-color: var(--primary-color); }
         .item label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; padding: 8px 0; }
