@@ -1,5 +1,7 @@
 # HA Pet Care for Home Assistant
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/jacardbr)
+
 Custom integration to keep your pets' care history: **vaccines, dewormers, exams, baths, grooming, vet visits and remedies**, with a **profile photo** for each pet. Everything is stored locally in your Home Assistant, with no cloud.
 
 <p align="center">
@@ -223,6 +225,12 @@ history_types:   # optional; order of the History filters
 - Domain: `ha_pet_care`
 - Data in `.storage/ha_pet_care.<entry_id>`; photos in `<config>/ha_pet_care_photos/`
 - Checks on GitHub Actions: `hacs/action` and `hassfest`
+
+## Support
+
+If HA Pet Care is useful to you, you can support its development:
+
+<a href="https://buymeacoffee.com/jacardbr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="48"></a>
 
 ## License
 
