@@ -382,7 +382,7 @@ class HaPetCareCard extends HTMLElement {
     return `<div class="panel" data-panel="${action.key}">
       <div class="ptitle">${this._esc(title)}</div>
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
-      ${action.text && this._remedyOptions().length ? `<div class="vchips">${this._remedyOptions().map((v) => `<button type="button" class="vchip ${p.desc === v ? "on" : ""}" data-remedy="${this._esc(v)}" aria-pressed="${p.desc === v}">${this._esc(v)}</button>`).join("")}</div>` : ""}
+      ${action.text && this._remedyOptions(byKey).length ? `<div class="vchips">${this._remedyOptions(byKey).map((v) => `<button type="button" class="vchip ${p.desc === v ? "on" : ""}" data-remedy="${this._esc(v)}" aria-pressed="${p.desc === v}">${this._esc(v)}</button>`).join("")}</div>` : ""}
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
@@ -395,14 +395,23 @@ class HaPetCareCard extends HTMLElement {
     </div>`;
   }
 
-  _remedyOptions() {
-    const opts = this._config.remedy_options;
-    return Array.isArray(opts) ? opts.map(String).filter(Boolean) : [];
+  // Remedies from the card editor, plus any name already logged (so a typed name joins the list).
+  _remedyOptions(byKey) {
+    const opts = Array.isArray(this._config.remedy_options) ? this._config.remedy_options.map(String) : [];
+    const entityId = byKey?.remedy;
+    const history = entityId ? this._hass.states[entityId]?.attributes?.history : null;
+    const logged = Array.isArray(history) ? history.map((r) => r.description) : [];
+    const seen = new Set();
+    return [...opts, ...logged]
+      .map((v) => String(v || "").trim())
+      .filter((v) => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
   }
 
   _vaccineOptions() {
-    const opts = this._config.vaccine_options;
-    return Array.isArray(opts) && opts.length ? opts.map(String) : tr(this._hass).vaccines;
+    const opts = Array.isArray(this._config.vaccine_options)
+      ? [...new Set(this._config.vaccine_options.map((v) => String(v ?? "").trim()).filter(Boolean))]
+      : [];
+    return opts.length ? opts : tr(this._hass).vaccines;
   }
 
   _panelValid() {
@@ -1019,11 +1028,12 @@ class HaPetCareCardEditor extends HTMLElement {
       this._form.addEventListener("value-changed", (ev) => {
         const { fields, actions, history_types, ...rest } = ev.detail.value;
         const config = { ...this._config, ...rest };
-        // Keep the vaccine list out of the config while it matches the language default.
-        const vaccines = (config.vaccine_options || []).map((v) => String(v).trim()).filter(Boolean);
-        if (!vaccines.length || vaccines.join("|") === tr(this._hass).vaccines.join("|")) delete config.vaccine_options;
+        // Lists are saved as typed (blank rows and spaces kept) so "add" and typing work; the card trims them on use.
+        // The vaccine list stays out of the config while it matches the language default.
+        const vaccines = Array.isArray(config.vaccine_options) ? config.vaccine_options.map((v) => String(v ?? "")) : [];
+        if (vaccines.join("|") === tr(this._hass).vaccines.join("|")) delete config.vaccine_options;
         else config.vaccine_options = vaccines;
-        const remedies = (config.remedy_options || []).map((v) => String(v).trim()).filter(Boolean);
+        const remedies = Array.isArray(config.remedy_options) ? config.remedy_options.map((v) => String(v ?? "")) : [];
         if (remedies.length) config.remedy_options = remedies;
         else delete config.remedy_options;
         for (const type of INTERVAL_TYPES) {
