@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "HA Pet Care",
-        "description": "Controle vacinas, vermífugos, exames, banhos, tosas e consultas dos seus pets. Depois de configurar, adicione seus pets em Configurar na integração."
+        "description": "Controle vacinas, vermífugos, exames, banhos, tosas, consultas e remédios dos seus pets. Depois de configurar, adicione seus pets em Configurar na integração."
       }
     },
     "abort": {
@@ -94,6 +94,9 @@
       },
       "next_bath": {
         "name": "Próximo banho"
+      },
+      "remedy": {
+        "name": "Último remédio"
       }
     },
     "image": {
@@ -121,6 +124,9 @@
       },
       "add_vet_visit": {
         "name": "Registrar consulta"
+      },
+      "add_remedy": {
+        "name": "Registrar remédio"
       }
     }
   },
@@ -139,14 +145,15 @@
         "exam": "Exame",
         "bath": "Banho",
         "grooming": "Tosa",
-        "vet_visit": "Consulta veterinária"
+        "vet_visit": "Consulta veterinária",
+        "remedy": "Remédio"
       }
     }
   },
   "services": {
     "add_record": {
       "name": "Adicionar registro",
-      "description": "Registra uma vacina, vermífugo, exame, banho, tosa ou consulta de um pet.",
+      "description": "Registra uma vacina, vermífugo, exame, banho, tosa, consulta ou remédio de um pet.",
       "fields": {
         "pet": {
           "name": "Pet",

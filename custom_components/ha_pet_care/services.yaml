@@ -17,6 +17,7 @@ add_record:
             - bath
             - grooming
             - vet_visit
+            - remedy
     date:
       required: false
       selector:

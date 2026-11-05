@@ -16,6 +16,7 @@ RECORD_EXAM = "exam"
 RECORD_BATH = "bath"
 RECORD_GROOMING = "grooming"
 RECORD_VET_VISIT = "vet_visit"
+RECORD_REMEDY = "remedy"
 
 RECORD_TYPES = [
     RECORD_VACCINE,
@@ -24,6 +25,7 @@ RECORD_TYPES = [
     RECORD_BATH,
     RECORD_GROOMING,
     RECORD_VET_VISIT,
+    RECORD_REMEDY,
 ]
 
 # Record types that get a button on the device screen (exams are logged with the
@@ -34,6 +36,7 @@ BUTTON_RECORD_TYPES = [
     RECORD_BATH,
     RECORD_GROOMING,
     RECORD_VET_VISIT,
+    RECORD_REMEDY,
 ]
 
 SPECIES = ["dog", "cat", "other"]
