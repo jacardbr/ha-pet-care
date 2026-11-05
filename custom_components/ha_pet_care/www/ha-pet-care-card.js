@@ -25,6 +25,7 @@ const TEXTS = {
     panel_title: (x) => `Registrar ${x.toLowerCase()}`,
     panel_title_weight: "Registrar peso",
     panel_date: "Data do evento",
+    panel_next: "Próxima data",
     panel_desc: "Vacinas aplicadas",
     vaccines: ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"],
     panel_weight: "Peso (kg)",
@@ -89,6 +90,7 @@ const TEXTS = {
     panel_title: (x) => `Log ${x.toLowerCase()}`,
     panel_title_weight: "Log weight",
     panel_date: "Event date",
+    panel_next: "Next date",
     panel_desc: "Vaccines given",
     vaccines: ["V8", "V10", "Rabies", "Kennel cough", "Giardia", "Leishmaniasis"],
     panel_weight: "Weight (kg)",
@@ -152,6 +154,8 @@ const ACTIONS = [
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
+// Default gap to the next event, in months (same as the integration's sensors).
+const NEXT_MONTHS = { vaccine: 12, deworming: 6, bath: 1 };
 const DEFAULT_ACTIONS = ACTIONS.map((a) => a.key);
 const HIST = [
   { key: "weight", icon: "mdi:weight-kilogram" },
@@ -252,6 +256,21 @@ class HaPetCareCard extends HTMLElement {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  // ISO date plus whole months, clamping the day (Aug 31 + 6 -> Feb 28).
+  _addMonths(iso, months) {
+    const [y, m, d] = iso.split("-").map(Number);
+    const idx = y * 12 + (m - 1) + months;
+    const ny = Math.floor(idx / 12);
+    const nm = idx % 12;
+    const day = Math.min(d, new Date(ny, nm + 1, 0).getDate());
+    return `${ny}-${String(nm + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  _defaultNext(type, date) {
+    const months = NEXT_MONTHS[type];
+    return months && /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? this._addMonths(date, months) : "";
+  }
+
   _petName(byKey) {
     const id = this._siblings().deviceId;
     return this._hass.devices?.[id]?.name || this._config.name || "";
@@ -269,6 +288,7 @@ class HaPetCareCard extends HTMLElement {
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
+      ${NEXT_MONTHS[action.type] ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
       <div class="pbtns">
         <button class="pbtn" data-pcancel>${this._esc(t.panel_cancel)}</button>
         <button class="pbtn ok" data-pok>${this._esc(t.panel_ok)}</button>
@@ -290,7 +310,8 @@ class HaPetCareCard extends HTMLElement {
       const w = Number(p.weight);
       return dateOk && w > 0 && w <= 200;
     }
-    return dateOk;
+    const nextOk = !p.next || (/^\d{4}-\d{2}-\d{2}$/.test(p.next) && p.next >= p.date);
+    return dateOk && nextOk;
   }
 
   _openPanel(key, byKey) {
@@ -299,7 +320,9 @@ class HaPetCareCard extends HTMLElement {
       const v = byKey.log_weight ? this._hass.states[byKey.log_weight]?.state : undefined;
       weight = v && !isNaN(Number(v)) ? v : "";
     }
-    this._panel = { key, date: this._today(), weight, vaccines: [] };
+    const type = ACTIONS.find((a) => a.key === key)?.type;
+    const date = this._today();
+    this._panel = { key, date, weight, vaccines: [], next: this._defaultNext(type, date), nextEdited: false };
     this._last = null;
     this._render();
     const first = this.querySelector(".panel input");
@@ -315,6 +338,8 @@ class HaPetCareCard extends HTMLElement {
       const data = { pet, type: action.type, date: p.date };
       const chosen = this._vaccineOptions().filter((v) => (p.vaccines || []).includes(v));
       if (action.multi && chosen.length) data.description = chosen.join(", ");
+      // Send the next date only when it differs from the default, so the sensor keeps computing it.
+      if (p.next && p.next !== this._defaultNext(action.type, p.date)) data.next_due = p.next;
       this._hass.callService("ha_pet_care", "add_record", data);
     } else {
       this._hass.callService("ha_pet_care", "add_weight", { pet, weight: Number(p.weight), date: p.date });
@@ -648,7 +673,19 @@ class HaPetCareCard extends HTMLElement {
       sync();
       panel.querySelectorAll("[data-pfield]").forEach((inp) => {
         inp.addEventListener("input", () => {
-          this._panel[inp.dataset.pfield] = inp.value;
+          const field = inp.dataset.pfield;
+          this._panel[field] = inp.value;
+          const nextInp = panel.querySelector('[data-pfield="next"]');
+          if (field === "next") this._panel.nextEdited = true;
+          if (field === "date" && nextInp) {
+            const type = ACTIONS.find((a) => a.key === this._panel.key)?.type;
+            nextInp.min = inp.value;
+            // Follow the event date until the user picks a next date by hand.
+            if (!this._panel.nextEdited) {
+              this._panel.next = this._defaultNext(type, inp.value);
+              nextInp.value = this._panel.next;
+            }
+          }
           sync();
         });
         inp.addEventListener("keydown", (ev) => {
