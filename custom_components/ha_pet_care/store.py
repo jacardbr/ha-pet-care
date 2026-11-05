@@ -95,6 +95,21 @@ def _remove_file(path: str) -> None:
         pass
 
 
+def _remove_entry_photos(photo_dir: str, prefix: str) -> None:
+    """Remove an entry's photos and the folder if empty (runs in the executor)."""
+    try:
+        names = os.listdir(photo_dir)
+    except OSError:
+        return
+    for name in names:
+        if name.startswith(prefix):
+            _remove_file(os.path.join(photo_dir, name))
+    try:
+        os.rmdir(photo_dir)
+    except OSError:
+        pass
+
+
 class PetCareStore:
     """Keeps pets and their records, persisted in .storage."""
 
@@ -115,8 +130,13 @@ class PetCareStore:
             self._data = data
 
     async def async_remove_storage(self) -> None:
-        """Delete the storage file."""
+        """Delete the storage file and this entry's photos."""
         await self._store.async_remove()
+        await self.hass.async_add_executor_job(
+            _remove_entry_photos,
+            self.hass.config.path(PHOTO_DIR),
+            f"{self.entry_id}_",
+        )
 
     async def _async_save(self) -> None:
         await self._store.async_save(self._data)
