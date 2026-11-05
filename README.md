@@ -50,7 +50,7 @@ Click the button above to open this repository directly in HACS on your Home Ass
 
 ## Adding pets
 
-Go to **HA Pet Care → Configure → Add a pet**: name, species, birth date and, optionally, a photo that you attach right on the screen (JPG, PNG, WEBP or GIF). To change or add the photo later, use **Configure → Change a pet's photo**. The photo is stored inside Home Assistant, so the original file can be deleted.
+Go to **HA Pet Care → Configure → Add a pet**: name, species, birth date and, optionally, a photo that you attach right on the screen (JPG, PNG, WEBP or GIF). To change or add the photo later, use **Configure → Change a pet's photo**, or **Change photo** in the **Display** section of the card editor. The photo is stored inside Home Assistant, so the original file can be deleted.
 
 ## Actions (services)
 
@@ -86,6 +86,8 @@ data:
   pet: Rex
   path: /config/www/pets/rex.jpg
 ```
+
+Instead of `path`, you can pass `file_id`: the ID of an image uploaded to Home Assistant's `/api/file_upload` (this is what the card editor uses).
 
 ## Logging from the device page
 
@@ -146,7 +148,7 @@ The integration already includes the **HA Pet Care** card (no extra installation
 1. Restart Home Assistant after updating, and refresh your browser (Ctrl+F5).
 2. On a dashboard in edit mode, click **Add card** and search for **HA Pet Care**.
 3. Pick any entity of the pet (for example, the photo). The card finds the others by itself.
-4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit, exam and remedy), whether to show the photo and the name, and which **actions** and **history filters** to show.
+4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit, exam and remedy), whether to show the photo and the name, change the pet's photo (**Change photo** in the **Display** section), and which **actions** and **history filters** to show.
 5. In the **Actions**, **Fields** and **History to show** lists, drag by the ☰ handle to change the order; the order of the checked items is the order shown on the card.
 
 ### Using the card

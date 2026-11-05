@@ -62,6 +62,11 @@ const TEXTS = {
     act_title: (x) => `Registrar ${x.toLowerCase()} (hoje)`,
     act_title_weight: "Registrar peso",
     show_photo: "Mostrar foto",
+    photo_upload: "Trocar foto",
+    photo_hint: "JPG, PNG, WEBP ou GIF. A foto do pet é trocada assim que o envio termina.",
+    photo_sending: "Trocando a foto…",
+    photo_done: "Foto atualizada.",
+    photo_error: (m) => `Não foi possível trocar a foto: ${m}`,
     show_name: "Mostrar nome",
     none: "Sem registro",
     today: "Hoje",
@@ -144,6 +149,11 @@ const TEXTS = {
     act_title: (x) => `Log ${x.toLowerCase()} (today)`,
     act_title_weight: "Log weight",
     show_photo: "Show photo",
+    photo_upload: "Change photo",
+    photo_hint: "JPG, PNG, WEBP or GIF. The pet's photo is replaced as soon as the upload finishes.",
+    photo_sending: "Changing the photo…",
+    photo_done: "Photo updated.",
+    photo_error: (m) => `Could not change the photo: ${m}`,
     show_name: "Show name",
     none: "No record",
     today: "Today",
@@ -937,6 +947,22 @@ class HaPetCareCardEditor extends HTMLElement {
     return LISTS[name].label(t, key);
   }
 
+  // Replace the pet's photo with a file uploaded by the file selector (its value is the upload's file_id).
+  async _setPhoto(fileId) {
+    const t = tr(this._hass);
+    const deviceId = this._hass.entities?.[this._config.entity]?.device_id;
+    const pet = this._hass.devices?.[deviceId]?.name || this._config.name || "";
+    this._photoStatus = t.photo_sending;
+    this._render();
+    try {
+      await this._hass.callService("ha_pet_care", "set_photo", { pet, file_id: fileId });
+      this._photoStatus = t.photo_done;
+    } catch (err) {
+      this._photoStatus = t.photo_error(err?.message || String(err));
+    }
+    this._render();
+  }
+
   _renderLists() {
     if (!this._lists || !this._hass || !this._config) return;
     if (this._dragging) return; // Home Assistant pushes updates constantly; never rebuild mid-drag
@@ -1038,7 +1064,9 @@ class HaPetCareCardEditor extends HTMLElement {
     if (!this._form) {
       this._form = document.createElement("ha-form");
       this._form.addEventListener("value-changed", (ev) => {
-        const { fields, actions, history_types, ...rest } = ev.detail.value;
+        const { fields, actions, history_types, photo_upload, ...rest } = ev.detail.value;
+        // A new photo is sent straight to the integration; it is not part of the card config.
+        if (photo_upload) this._setPhoto(photo_upload);
         const config = { ...this._config, ...rest };
         // Lists are saved as typed (blank rows and spaces kept) so "add" and typing work; the card trims them on use.
         // The vaccine list stays out of the config while it matches the language default.
@@ -1082,6 +1110,7 @@ class HaPetCareCardEditor extends HTMLElement {
         schema: [
           { name: "name", selector: { text: {} } },
           { name: "show_photo", selector: { boolean: {} } },
+          { name: "photo_upload", selector: { file: { accept: "image/*" } } },
           { name: "show_name", selector: { boolean: {} } },
           { name: "ask_date", selector: { boolean: {} } },
         ],
@@ -1120,13 +1149,17 @@ class HaPetCareCardEditor extends HTMLElement {
         schema: INTERVAL_TYPES.map((type) => ({ name: `interval_${type}`, selector: { number: { min: 0, max: 3650, mode: "box", unit_of_measurement: "d" } } })),
       },
     ];
-    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, remedy_options: t.remedy_options, sec_remedies: t.sec_remedies, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
+    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, photo_upload: t.photo_upload, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, remedy_options: t.remedy_options, sec_remedies: t.sec_remedies, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
     for (const type of INTERVAL_TYPES) {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
     this._form.computeLabel = (s) => labels[s.name] || s.name;
     // ha-form shows an expandable section's helper as its first line.
-    this._form.computeHelper = (s) => (s.name === "intervals" ? t.intervals_hint : undefined);
+    this._form.computeHelper = (s) => {
+      if (s.name === "intervals") return t.intervals_hint;
+      if (s.name === "photo_upload") return this._photoStatus || t.photo_hint;
+      return undefined;
+    };
     this._renderLists();
   }
 }

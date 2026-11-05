@@ -208,7 +208,11 @@
         },
         "path": {
           "name": "Path",
-          "description": "Path to a JPG, PNG, WEBP or GIF file inside your Home Assistant config folder."
+          "description": "Path to a JPG, PNG, WEBP or GIF file inside your Home Assistant config folder. Use this or the file ID."
+        },
+        "file_id": {
+          "name": "File ID",
+          "description": "ID of an image uploaded to Home Assistant (used by the card editor). Use this or the path."
         }
       }
     },

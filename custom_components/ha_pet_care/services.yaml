@@ -58,8 +58,10 @@ set_photo:
       selector:
         text:
     path:
-      required: true
       example: "/config/www/pets/rex.jpg"
+      selector:
+        text:
+    file_id:
       selector:
         text:
 

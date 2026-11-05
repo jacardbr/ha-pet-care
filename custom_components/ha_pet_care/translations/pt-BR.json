@@ -208,7 +208,11 @@
         },
         "path": {
           "name": "Caminho",
-          "description": "Caminho de um arquivo JPG, PNG, WEBP ou GIF dentro da pasta de configuração do Home Assistant."
+          "description": "Caminho de um arquivo JPG, PNG, WEBP ou GIF dentro da pasta de configuração do Home Assistant. Use este ou o ID do arquivo."
+        },
+        "file_id": {
+          "name": "ID do arquivo",
+          "description": "ID de uma imagem enviada ao Home Assistant (usado pelo editor do card). Use este ou o caminho."
         }
       }
     },

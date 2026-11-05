@@ -57,6 +57,7 @@ ATTR_NOTES = "notes"
 ATTR_NEXT_DUE = "next_due"
 ATTR_RECORD_ID = "record_id"
 ATTR_PATH = "path"
+ATTR_FILE_ID = "file_id"
 ATTR_WEIGHT = "weight"
 
 SERVICE_ADD_RECORD = "add_record"
