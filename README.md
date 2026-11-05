@@ -148,11 +148,11 @@ The integration already includes the **HA Pet Care** card (no extra installation
 
 ### Using the card
 
-**1. Summary tab.** Right below the photo and name are the **action buttons** (icons only: vaccine, dewormer, bath, grooming, vet visit, remedy and weight) followed by the fields you chose. Upcoming dates are shown in orange and overdue dates in red. Hold or hover over an icon to see its name.
+**1. Summary tab.** Right below the photo and name are the **action buttons** (icons only: vaccine, dewormer, remedy, bath, grooming, vet visit and weight) followed by the fields you chose. Upcoming dates are shown in orange and overdue dates in red. Hold or hover over an icon to see its name.
 
 <p align="center"><img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/summary-light.png" alt="Summary tab" width="340"></p>
 
-**2. Logging an event.** Tap an action button to open the panel. The date is pre-filled with today; change it if the event happened on another day (future dates are not accepted). For vaccines, tap the vaccines that were given (you can pick more than one): they are saved as a single record, such as "V10, Rabies". For weight, the panel also has a weight field, pre-filled with the last value. For vaccines, dewormers and baths, the panel also shows the **Next date**, suggested from the event date (1 year, 6 months and 1 month later); change it if the vet set another date. Tap **Log it** to save. The vaccine list follows your Home Assistant language, and you can customize it with `vaccine_options` in the card YAML (for example `vaccine_options: [V10, Rabies]`). To go back to one-tap logging, turn off **Ask for the date when logging** (`ask_date: false`).
+**2. Logging an event.** Tap an action button to open the panel. The date is pre-filled with today; change it if the event happened on another day (future dates are not accepted). For vaccines, tap the vaccines that were given (you can pick more than one): they are saved as a single record, such as "V10, Rabies". For remedies, type the remedy name; it is saved as the record description. For weight, the panel also has a weight field, pre-filled with the last value. For vaccines, dewormers and baths, the panel also shows the **Next date**, suggested from the event date (1 year, 6 months and 1 month later); change it if the vet set another date. Tap **Log it** to save. The vaccine list follows your Home Assistant language, and you can customize it with `vaccine_options` in the card YAML (for example `vaccine_options: [V10, Rabies]`). To go back to one-tap logging, turn off **Ask for the date when logging** (`ask_date: false`).
 
 <p align="center"><img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/vaccine-panel.png" alt="Vaccine logging panel with selected vaccines" width="340"></p>
 
@@ -191,10 +191,10 @@ entity: image.mel_photo
 actions:      # optional; default: all (list order is the order on the card)
   - add_vaccine
   - add_deworming
+  - add_remedy
   - add_bath
   - add_grooming
   - add_vet_visit
-  - add_remedy
   - log_weight
 fields:       # optional; default: age, next_vaccine, next_dewormer, next_bath
   - age
@@ -207,11 +207,11 @@ history_types:   # optional; order of the History filters
   - weight
   - vaccine
   - deworming
+  - remedy
   - bath
   - grooming
   - vet_visit
   - exam
-  - remedy
 ```
 
 ## Development
