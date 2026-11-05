@@ -21,6 +21,7 @@ from .const import (
     ATTR_DESCRIPTION,
     ATTR_NEXT_DUE,
     ATTR_NOTES,
+    ATTR_FILE_ID,
     ATTR_PATH,
     ATTR_PET,
     ATTR_RECORD_ID,
@@ -63,8 +64,16 @@ ADD_RECORD_SCHEMA = vol.Schema(
 REMOVE_RECORD_SCHEMA = vol.Schema(
     {vol.Required(ATTR_PET): cv.string, vol.Required(ATTR_RECORD_ID): cv.string}
 )
-SET_PHOTO_SCHEMA = vol.Schema(
-    {vol.Required(ATTR_PET): cv.string, vol.Required(ATTR_PATH): cv.string}
+# Either a file path on the server or the id of a file uploaded to /api/file_upload.
+SET_PHOTO_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required(ATTR_PET): cv.string,
+            vol.Exclusive(ATTR_PATH, "source"): cv.string,
+            vol.Exclusive(ATTR_FILE_ID, "source"): cv.string,
+        }
+    ),
+    cv.has_at_least_one_key(ATTR_PATH, ATTR_FILE_ID),
 )
 ADD_WEIGHT_SCHEMA = vol.Schema(
     {
@@ -118,7 +127,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def set_photo(call: ServiceCall) -> None:
         store = _get_store(call.hass)
         pet_id = store.get_pet_id(call.data[ATTR_PET])
-        await store.async_set_photo(pet_id, call.data[ATTR_PATH])
+        if ATTR_FILE_ID in call.data:
+            await store.async_set_photo_upload(pet_id, call.data[ATTR_FILE_ID])
+        else:
+            await store.async_set_photo(pet_id, call.data[ATTR_PATH])
 
     async def add_weight(call: ServiceCall) -> dict[str, str]:
         store = _get_store(call.hass)
