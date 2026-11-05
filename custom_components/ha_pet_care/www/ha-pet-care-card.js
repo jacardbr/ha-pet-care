@@ -682,7 +682,8 @@ class HaPetCareCard extends HTMLElement {
     const name = this._config.name || hass.devices?.[deviceId]?.name_by_user || hass.devices?.[deviceId]?.name || "";
     const photoId = this._config.photo_entity || byKey.photo;
     const photo = photoId ? hass.states[photoId] : undefined;
-    const picture = photo?.attributes?.entity_picture;
+    // With no photo the image entity is "unknown" and its picture URL fails, so show the initial instead.
+    const picture = photo && !["unknown", "unavailable"].includes(photo.state) ? photo.attributes?.entity_picture : undefined;
     const showPhoto = this._config.show_photo !== false;
     const showName = this._config.show_name !== false;
     const wanted = resolveList(this._config, "fields");
@@ -982,7 +983,8 @@ class HaPetCareCardEditor extends HTMLElement {
     const t = tr(this._hass);
     const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const c = this._crop;
-    const pic = this._photoEntity()?.attributes?.entity_picture;
+    const photo = this._photoEntity();
+    const pic = photo && !["unknown", "unavailable"].includes(photo.state) ? photo.attributes?.entity_picture : undefined;
     const status = this._photoStatus || (c ? t.photo_crop_hint : t.photo_hint);
     const html = c
       ? `<div class="crop">
@@ -1128,6 +1130,36 @@ class HaPetCareCardEditor extends HTMLElement {
     }
   }
 
+  // On/off options as compact rows; built once, then only their state is updated.
+  _renderToggles(box, keys, data, t) {
+    if (!box.childElementCount) {
+      const useSwitch = customElements.get("ha-switch");
+      for (const key of keys) {
+        const row = document.createElement("label");
+        row.className = "trow";
+        const text = document.createElement("span");
+        const sw = document.createElement(useSwitch ? "ha-switch" : "input");
+        if (!useSwitch) sw.type = "checkbox";
+        sw.dataset.key = key;
+        sw.addEventListener("change", () => this._emit({ ...this._config, [key]: sw.checked }));
+        // ha-switch is not a form control, so a click on the text must toggle it by hand.
+        row.addEventListener("click", (ev) => {
+          if (ev.target === sw || !useSwitch) return;
+          ev.preventDefault();
+          sw.checked = !sw.checked;
+          sw.dispatchEvent(new Event("change"));
+        });
+        row.append(text, sw);
+        box.append(row);
+      }
+    }
+    for (const row of box.children) {
+      const sw = row.lastElementChild;
+      row.firstElementChild.textContent = t[sw.dataset.key];
+      sw.checked = data[sw.dataset.key] !== false;
+    }
+  }
+
   _renderLists() {
     if (!this._lists || !this._hass || !this._config) return;
     if (this._dragging) return; // Home Assistant pushes updates constantly; never rebuild mid-drag
@@ -1233,6 +1265,8 @@ class HaPetCareCardEditor extends HTMLElement {
       this._formTop = document.createElement("ha-form");
       this._formDisplay = document.createElement("ha-form");
       this._form = document.createElement("ha-form");
+      this._formHistory = document.createElement("ha-form");
+      this._formIntervals = document.createElement("ha-form");
       const onValue = (ev) => {
         const { fields, actions, history_types, ...rest } = ev.detail.value;
         const config = { ...this._config, ...rest };
@@ -1251,7 +1285,8 @@ class HaPetCareCardEditor extends HTMLElement {
         }
         this._emit(config);
       };
-      [this._formTop, this._formDisplay, this._form].forEach((f) => f.addEventListener("value-changed", onValue));
+      this._forms = [this._formTop, this._formDisplay, this._form, this._formHistory, this._formIntervals];
+      this._forms.forEach((f) => f.addEventListener("value-changed", onValue));
       const style = document.createElement("style");
       style.textContent = `
         .dsec { display: block; margin-top: 24px; --expansion-panel-content-padding: 0;
@@ -1261,6 +1296,13 @@ class HaPetCareCardEditor extends HTMLElement {
         .dsec .dinner { padding: 12px; }
         details.dsec .dinner { padding: 0 0 12px; }
         .main-form { display: block; margin-top: 24px; }
+        /* On/off options as compact rows (ha-form spaces each switch 24px apart). */
+        .toggles { display: flex; flex-direction: column; }
+        .toggles:not(:first-child) { margin-top: 24px; }
+        .dinner > ha-form { display: block; }
+        .toggles + ha-form { margin-top: 24px; }
+        .trow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; cursor: pointer;
+                color: var(--primary-text-color); }
         .photo { margin-top: 24px; }
         .pbox { display: flex; align-items: center; gap: 16px; }
         .pcur { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--secondary-background-color); }
@@ -1272,20 +1314,30 @@ class HaPetCareCardEditor extends HTMLElement {
         .pbtns { display: flex; gap: 8px; justify-content: flex-end; width: 100%; max-width: ${CROP_VIEW}px; }
         .phint { color: var(--secondary-text-color); margin: 8px 0 0; font-size: 0.875em; }
       `;
-      const panel = customElements.get("ha-expansion-panel");
-      this._dispSec = document.createElement(panel ? "ha-expansion-panel" : "details");
-      this._dispSec.className = "dsec";
-      if (panel) this._dispSec.outlined = true;
-      const inner = document.createElement("div");
-      inner.className = "dinner";
+      const makePanel = (...children) => {
+        const usePanel = customElements.get("ha-expansion-panel");
+        const sec = document.createElement(usePanel ? "ha-expansion-panel" : "details");
+        sec.className = "dsec";
+        if (usePanel) sec.outlined = true;
+        else sec.append(document.createElement("summary"));
+        const inner = document.createElement("div");
+        inner.className = "dinner";
+        inner.append(...children);
+        sec.append(inner);
+        return sec;
+      };
       this._photoBox = document.createElement("div");
       this._photoBox.className = "photo";
-      inner.append(this._formDisplay, this._photoBox);
-      if (!panel) this._dispSec.append(document.createElement("summary"));
-      this._dispSec.append(inner);
+      this._displayToggles = document.createElement("div");
+      this._displayToggles.className = "toggles";
+      this._historyToggles = document.createElement("div");
+      this._historyToggles.className = "toggles";
+      this._dispSec = makePanel(this._formDisplay, this._displayToggles, this._photoBox);
+      this._histSec = makePanel(this._historyToggles, this._formHistory);
       this._form.className = "main-form";
+      this._formIntervals.className = "main-form";
       this._lists = document.createElement("div");
-      this.append(style, this._formTop, this._dispSec, this._form, this._lists);
+      this.append(style, this._formTop, this._dispSec, this._form, this._histSec, this._formIntervals, this._lists);
     }
     // Once per editor opening, add remedies already logged to the saved list (so they can be edited or removed).
     if (!this._remedySynced && this._config.entity && this._hass.entities?.[this._config.entity]) {
@@ -1299,18 +1351,19 @@ class HaPetCareCardEditor extends HTMLElement {
     }
     const t = tr(this._hass);
     const data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, vaccine_options: t.vaccines, ...this._config };
-    for (const f of [this._formTop, this._formDisplay, this._form]) {
+    for (const f of this._forms) {
       f.hass = this._hass;
       f.data = data;
     }
-    if (this._dispSec.tagName === "DETAILS") this._dispSec.querySelector("summary").textContent = t.sec_display;
-    else this._dispSec.header = t.sec_display;
+    for (const [sec, title] of [[this._dispSec, t.sec_display], [this._histSec, t.sec_history]]) {
+      if (sec.tagName === "DETAILS") sec.querySelector("summary").textContent = title;
+      else sec.header = title;
+    }
+    this._renderToggles(this._displayToggles, ["show_photo", "show_name", "ask_date"], data, t);
+    this._renderToggles(this._historyToggles, ["show_history"], data, t);
     this._formTop.schema = [{ name: "entity", required: true, selector: { entity: { integration: "ha_pet_care" } } }];
     this._formDisplay.schema = [
       { name: "name", selector: { text: {} } },
-      { name: "show_photo", selector: { boolean: {} } },
-      { name: "show_name", selector: { boolean: {} } },
-      { name: "ask_date", selector: { boolean: {} } },
     ];
     this._form.schema = [
       {
@@ -1329,16 +1382,9 @@ class HaPetCareCardEditor extends HTMLElement {
         title: t.sec_remedies,
         schema: [{ name: "remedy_options", selector: { text: { multiple: true } } }],
       },
-      {
-        name: "sec_history",
-        type: "expandable",
-        flatten: true,
-        title: t.sec_history,
-        schema: [
-          { name: "show_history", selector: { boolean: {} } },
-          { name: "history_limit", selector: { number: { min: 1, max: 50, mode: "box" } } },
-        ],
-      },
+    ];
+    this._formHistory.schema = [{ name: "history_limit", selector: { number: { min: 1, max: 50, mode: "box" } } }];
+    this._formIntervals.schema = [
       {
         name: "intervals",
         type: "expandable",
@@ -1352,7 +1398,7 @@ class HaPetCareCardEditor extends HTMLElement {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
     // ha-form shows an expandable section's helper as its first line.
-    for (const f of [this._formTop, this._formDisplay, this._form]) {
+    for (const f of this._forms) {
       f.computeLabel = (s) => labels[s.name] || s.name;
       f.computeHelper = (s) => (s.name === "intervals" ? t.intervals_hint : undefined);
     }
