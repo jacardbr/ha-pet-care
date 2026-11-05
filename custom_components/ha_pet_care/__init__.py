@@ -176,5 +176,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: PetCareConfigEntry) -> 
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: PetCareConfigEntry) -> None:
-    """Delete stored data when the integration is removed."""
+    """Delete stored data and photos when the integration is removed."""
     await PetCareStore(hass, entry.entry_id).async_remove_storage()
