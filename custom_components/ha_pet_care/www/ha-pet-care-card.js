@@ -6,6 +6,7 @@ const TEXTS = {
     next_vaccine: "Próxima vacina",
     next_dewormer: "Próximo vermífugo",
     next_bath: "Próximo banho",
+    next_remedy: "Próximo remédio",
     weight: "Peso",
     vaccine: "Última vacina",
     deworming: "Último vermífugo",
@@ -81,6 +82,7 @@ const TEXTS = {
     next_vaccine: "Next vaccine",
     next_dewormer: "Next dewormer",
     next_bath: "Next bath",
+    next_remedy: "Next remedy",
     weight: "Weight",
     vaccine: "Last vaccine",
     deworming: "Last dewormer",
@@ -158,6 +160,7 @@ const ROWS = [
   { key: "weight", icon: "mdi:weight-kilogram", kind: "plain" },
   { key: "next_vaccine", icon: "mdi:needle", kind: "next" },
   { key: "next_dewormer", icon: "mdi:snake", kind: "next" },
+  { key: "next_remedy", icon: "mdi:pill", kind: "next" },
   { key: "next_bath", icon: "mdi:shower-head", kind: "next" },
   { key: "vaccine", icon: "mdi:needle", kind: "last" },
   { key: "deworming", icon: "mdi:snake", kind: "last" },
@@ -192,7 +195,7 @@ const HIST = [
   { key: "exam", icon: "mdi:clipboard-pulse" },
 ];
 const DEFAULT_HIST = HIST.map((h) => h.key);
-const DEFAULT_FIELDS = ["age", "next_vaccine", "next_dewormer", "next_bath"];
+const DEFAULT_FIELDS = ["age", "next_vaccine", "next_dewormer", "next_remedy", "next_bath"];
 
 const tr = (hass) =>
   (hass?.locale?.language || hass?.language || "en").toLowerCase().startsWith("pt")
@@ -208,8 +211,8 @@ const LISTS = {
 // Lists saved by an older card version get the items added since then, so new
 // actions show up on existing cards. The editor saves CARD_VERSION, after which
 // an item missing from the list means the user turned it off.
-const CARD_VERSION = 2;
-const ADDED_IN = { 2: { actions: ["add_remedy"], history_types: ["remedy"] } };
+const CARD_VERSION = 3;
+const ADDED_IN = { 2: { actions: ["add_remedy"], history_types: ["remedy"] }, 3: { fields: ["next_remedy"] } };
 
 const resolveList = (config, name) => {
   const { items, defaults } = LISTS[name];
@@ -621,7 +624,7 @@ class HaPetCareCard extends HTMLElement {
     const picture = photo?.attributes?.entity_picture;
     const showPhoto = this._config.show_photo !== false;
     const showName = this._config.show_name !== false;
-    const wanted = Array.isArray(this._config.fields) ? this._config.fields : DEFAULT_FIELDS;
+    const wanted = resolveList(this._config, "fields");
     const rows = wanted.map((k) => ROWS.find((r) => r.key === k)).filter(Boolean);
     const tabsOn = this._config.show_history !== false;
     const tab = tabsOn && this._tab === "history" ? "history" : "summary";
