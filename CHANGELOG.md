@@ -20,9 +20,11 @@ All notable changes to HA Pet Care are listed here. Versions follow the `version
 ### Changed
 - Dewormer icon is now a snake (`mdi:snake`), since Material Design Icons has no worm icon.
 - Lists saved by older card versions get new items (such as the remedy action and the Next remedy field) automatically.
+- Card editor: on/off options in Display and History are compact rows, and every section uses the same spacing.
 
 ### Fixed
 - Removing the integration now also deletes the pets' photos in `<config>/ha_pet_care_photos/`.
+- Card: a pet without a photo shows its initial instead of a broken image.
 - Card editor: the "add" button of the vaccine and remedy lists created a row that disappeared at once, and spaces were removed while typing.
 
 ## [1.0.0] - 2026-10-16
