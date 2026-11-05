@@ -2,11 +2,12 @@
   "entity": {
     "sensor": {
       "vaccine": { "default": "mdi:needle" },
-      "deworming": { "default": "mdi:pill" },
+      "deworming": { "default": "mdi:snake" },
       "exam": { "default": "mdi:test-tube" },
       "bath": { "default": "mdi:shower" },
       "grooming": { "default": "mdi:content-cut" },
       "vet_visit": { "default": "mdi:stethoscope" },
+      "remedy": { "default": "mdi:pill" },
       "next_vaccine": { "default": "mdi:calendar-alert" },
       "next_dewormer": { "default": "mdi:calendar-refresh" },
       "next_bath": { "default": "mdi:shower-head" },
@@ -18,10 +19,11 @@
     },
     "button": {
       "add_vaccine": { "default": "mdi:needle" },
-      "add_deworming": { "default": "mdi:pill" },
+      "add_deworming": { "default": "mdi:snake" },
       "add_bath": { "default": "mdi:shower" },
       "add_grooming": { "default": "mdi:content-cut" },
-      "add_vet_visit": { "default": "mdi:stethoscope" }
+      "add_vet_visit": { "default": "mdi:stethoscope" },
+      "add_remedy": { "default": "mdi:pill" }
     }
   },
   "services": {

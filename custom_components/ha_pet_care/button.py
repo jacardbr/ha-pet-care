@@ -27,7 +27,7 @@ async def async_setup_entry(
 
 
 class PetAddRecordButton(ButtonEntity):
-    """Logs a vaccine, dewormer, bath, grooming or vet visit dated today."""
+    """Logs a vaccine, dewormer, bath, grooming, vet visit or remedy dated today."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False

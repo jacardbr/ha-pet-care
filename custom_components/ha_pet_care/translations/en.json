@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "HA Pet Care",
-        "description": "Track vaccines, dewormers, exams, baths, grooming and vet visits for your pets. After setup, add your pets by selecting Configure on the integration."
+        "description": "Track vaccines, dewormers, exams, baths, grooming, vet visits and remedies for your pets. After setup, add your pets by selecting Configure on the integration."
       }
     },
     "abort": {
@@ -94,6 +94,9 @@
       },
       "next_bath": {
         "name": "Next bath"
+      },
+      "remedy": {
+        "name": "Last remedy"
       }
     },
     "image": {
@@ -121,6 +124,9 @@
       },
       "add_vet_visit": {
         "name": "Log vet visit"
+      },
+      "add_remedy": {
+        "name": "Log remedy"
       }
     }
   },
@@ -139,14 +145,15 @@
         "exam": "Exam",
         "bath": "Bath",
         "grooming": "Grooming",
-        "vet_visit": "Vet visit"
+        "vet_visit": "Vet visit",
+        "remedy": "Remedy"
       }
     }
   },
   "services": {
     "add_record": {
       "name": "Add record",
-      "description": "Registers a vaccine, dewormer, exam, bath, grooming or vet visit for a pet.",
+      "description": "Registers a vaccine, dewormer, exam, bath, grooming, vet visit or remedy for a pet.",
       "fields": {
         "pet": {
           "name": "Pet",

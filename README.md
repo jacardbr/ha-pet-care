@@ -1,6 +1,6 @@
 # HA Pet Care for Home Assistant
 
-Custom integration to keep your pets' care history: **vaccines, dewormers, exams, baths, grooming and vet visits**, with a **profile photo** for each pet. Everything is stored locally in your Home Assistant, with no cloud.
+Custom integration to keep your pets' care history: **vaccines, dewormers, exams, baths, grooming, vet visits and remedies**, with a **profile photo** for each pet. Everything is stored locally in your Home Assistant, with no cloud.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/summary-light.png" alt="HA Pet Care card, Summary tab, light theme" width="330">
@@ -20,13 +20,14 @@ For each pet, a device with:
 | `sensor.<pet>_last_bath` | Date of the last bath |
 | `sensor.<pet>_last_grooming` | Date of the last grooming |
 | `sensor.<pet>_last_vet_visit` | Date of the last vet visit |
+| `sensor.<pet>_last_remedy` | Date of the last remedy |
 | `sensor.<pet>_next_vaccine` | Date of the next vaccine: **1 year** after the last vaccine, calculated automatically |
 | `sensor.<pet>_next_dewormer` | Date of the next dewormer: **6 months** after the last dewormer, calculated automatically |
 | `sensor.<pet>_next_bath` | Date of the next bath: **1 month** after the last bath, calculated automatically |
 | `sensor.<pet>_age` | Age calculated from the birth date (e.g. "2 years and 3 months"); attributes `years`, `months`, `total_months`, `decimal_years`, `next_birthday`, `days_until_birthday` and `is_birthday` |
 | `sensor.<pet>_weight` | Latest weight in kg; attributes `previous_weight`, `change`, `first_weight`, `change_since_first` and `history` (last 20 weights) |
 | `number.<pet>_log_weight` | Single weight field: shows the latest weight; type a new value and it is saved immediately with today's date |
-| `button.<pet>_log_vaccine`, `..._log_dewormer`, `..._log_bath`, `..._log_grooming`, `..._log_vet_visit` | One button per record type: logs the event with today's date |
+| `button.<pet>_log_vaccine`, `..._log_dewormer`, `..._log_bath`, `..._log_grooming`, `..._log_vet_visit`, `..._log_remedy` | One button per record type: logs the event with today's date |
 | `image.<pet>_photo` | Profile photo |
 
 Each "last" sensor has these attributes: `description`, `notes`, `next_due`, `days_since`, `record_id`, `total_records` and `history` (last 10 records).
@@ -56,7 +57,7 @@ Go to **HA Pet Care → Configure → Add a pet**: name, species, birth date and
 action: ha_pet_care.add_record
 data:
   pet: Rex
-  type: vaccine        # vaccine | deworming | exam | bath | grooming | vet_visit
+  type: vaccine        # vaccine | deworming | exam | bath | grooming | vet_visit | remedy
   date: "2026-10-12"   # optional, defaults to today
   description: V10     # optional
   notes: No reaction   # optional
@@ -85,7 +86,7 @@ data:
 
 ## Logging from the device page
 
-The pet's device page has one button per record type (**Log vaccine**, **dewormer**, **bath**, **grooming** and **vet visit**). Pressing a button saves the event with today's date and updates the matching sensor. Exams are logged with the `ha_pet_care.add_record` action (type `exam`).
+The pet's device page has one button per record type (**Log vaccine**, **dewormer**, **bath**, **grooming**, **vet visit** and **remedy**). Pressing a button saves the event with today's date and updates the matching sensor. Exams are logged with the `ha_pet_care.add_record` action (type `exam`).
 
 To log a past date, or to add a description, notes or a specific next date, use the `ha_pet_care.add_record` action (or the card, which asks for the date).
 
@@ -142,12 +143,12 @@ The integration already includes the **HA Pet Care** card (no extra installation
 1. Restart Home Assistant after updating, and refresh your browser (Ctrl+F5).
 2. On a dashboard in edit mode, click **Add card** and search for **HA Pet Care**.
 3. Pick any entity of the pet (for example, the photo). The card finds the others by itself.
-4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit and exam), whether to show the photo and the name, and which **actions** and **history filters** to show.
+4. In the editor, choose the **fields to show** (age, weight, next vaccine/dewormer/bath, and the last vaccine, dewormer, bath, grooming, vet visit, exam and remedy), whether to show the photo and the name, and which **actions** and **history filters** to show.
 5. In the **Actions**, **Fields** and **History filters** lists, drag by the ☰ handle to change the order; the order of the checked items is the order shown on the card.
 
 ### Using the card
 
-**1. Summary tab.** Right below the photo and name are the **action buttons** (icons only: vaccine, dewormer, bath, grooming, vet visit and weight) followed by the fields you chose. Upcoming dates are shown in orange and overdue dates in red. Hold or hover over an icon to see its name.
+**1. Summary tab.** Right below the photo and name are the **action buttons** (icons only: vaccine, dewormer, bath, grooming, vet visit, remedy and weight) followed by the fields you chose. Upcoming dates are shown in orange and overdue dates in red. Hold or hover over an icon to see its name.
 
 <p align="center"><img src="https://raw.githubusercontent.com/jacardbr/ha-pet-care/main/docs/images/summary-light.png" alt="Summary tab" width="340"></p>
 
@@ -193,6 +194,7 @@ actions:      # optional; default: all (list order is the order on the card)
   - add_bath
   - add_grooming
   - add_vet_visit
+  - add_remedy
   - log_weight
 fields:       # optional; default: age, next_vaccine, next_dewormer, next_bath
   - age
@@ -200,7 +202,7 @@ fields:       # optional; default: age, next_vaccine, next_dewormer, next_bath
   - next_vaccine
   - next_dewormer
   - next_bath
-  # also: vaccine, deworming, bath, grooming, vet_visit, exam
+  # also: vaccine, deworming, bath, grooming, vet_visit, exam, remedy
 history_types:   # optional; order of the History filters
   - weight
   - vaccine
@@ -209,6 +211,7 @@ history_types:   # optional; order of the History filters
   - grooming
   - vet_visit
   - exam
+  - remedy
 ```
 
 ## Development
