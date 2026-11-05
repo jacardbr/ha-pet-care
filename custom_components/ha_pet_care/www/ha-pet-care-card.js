@@ -921,11 +921,14 @@ class HaPetCareCardEditor extends HTMLElement {
     if (this._dragging) return; // Home Assistant pushes updates constantly; never rebuild mid-drag
     const t = tr(this._hass);
     const html = `<style>
-        .sec { display: block; margin-top: 8px; }
-        details.sec { border: 1px solid var(--divider-color); border-radius: 12px; padding: 0 12px; }
+        /* Same rhythm as ha-form's sections: 24px between sections, 12px inside. */
+        .sec { display: block; margin-top: 24px; --expansion-panel-content-padding: 0;
+               border-radius: var(--ha-border-radius-md, 12px); --ha-card-border-radius: var(--ha-border-radius-md, 12px); }
+        details.sec { border: 1px solid var(--divider-color); padding: 0 12px; }
         details.sec summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
-        .sec .inner { padding-bottom: 8px; }
-        .hint { color: var(--secondary-text-color); font-size: 0.85em; margin: 4px 0 8px; }
+        .sec .inner { padding: 12px; }
+        details.sec .inner { padding: 0 0 12px; }
+        .hint { color: var(--secondary-text-color); margin: 0 0 12px; }
         .item { display: flex; align-items: center; gap: 8px; padding: 2px 8px 2px 4px; border-radius: 8px;
                 background: var(--card-background-color); border: 1px solid transparent; }
         .item.on { border-color: var(--divider-color); margin-bottom: 4px; }
@@ -1090,8 +1093,8 @@ class HaPetCareCardEditor extends HTMLElement {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
     this._form.computeLabel = (s) => labels[s.name] || s.name;
-    // The period hint sits inside its section, under the first field.
-    this._form.computeHelper = (s) => (s.name === `interval_${INTERVAL_TYPES[0]}` ? t.intervals_hint : undefined);
+    // ha-form shows an expandable section's helper as its first line.
+    this._form.computeHelper = (s) => (s.name === "intervals" ? t.intervals_hint : undefined);
     this._renderLists();
   }
 }
