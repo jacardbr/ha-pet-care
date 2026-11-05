@@ -27,6 +27,7 @@ const TEXTS = {
     panel_title_weight: "Registrar peso",
     panel_date: "Data do evento",
     panel_next: "Próxima data",
+    panel_recurring: "Recorrente",
     panel_desc: "Vacinas aplicadas",
     vaccines: ["V8", "V10", "Antirrábica", "Gripe", "Giárdia", "Leishmaniose"],
     panel_weight: "Peso (kg)",
@@ -69,6 +70,11 @@ const TEXTS = {
     not_found: "Pet não encontrado. Escolha uma entidade do HA Pet Care.",
     entity: "Entidade de qualquer sensor do pet",
     name: "Nome (opcional)",
+    vaccine_options: "Vacinas oferecidas ao registrar",
+    intervals: "Período até o próximo evento (em dias; vazio = padrão, 0 = sem sugestão)",
+    interval: (x, d) => `${x} (padrão: ${d})`,
+    no_default: "sem sugestão",
+    months: (n) => (n === 1 ? "1 mês" : n === 12 ? "1 ano" : `${n} meses`),
   },
   en: {
     age: "Age",
@@ -96,6 +102,7 @@ const TEXTS = {
     panel_title_weight: "Log weight",
     panel_date: "Event date",
     panel_next: "Next date",
+    panel_recurring: "Recurring",
     panel_desc: "Vaccines given",
     vaccines: ["V8", "V10", "Rabies", "Kennel cough", "Giardia", "Leishmaniasis"],
     panel_weight: "Weight (kg)",
@@ -138,6 +145,11 @@ const TEXTS = {
     not_found: "Pet not found. Pick an HA Pet Care entity.",
     entity: "Any entity of the pet",
     name: "Name (optional)",
+    vaccine_options: "Vaccines offered when logging",
+    intervals: "Time until the next event (in days; empty = default, 0 = no suggestion)",
+    interval: (x, d) => `${x} (default: ${d})`,
+    no_default: "no suggestion",
+    months: (n) => (n === 1 ? "1 month" : n === 12 ? "1 year" : `${n} months`),
   },
 };
 
@@ -158,7 +170,7 @@ const ROWS = [
 const ACTIONS = [
   { key: "add_vaccine", type: "vaccine", multi: true, icon: "mdi:needle", press: true },
   { key: "add_deworming", type: "deworming", icon: "mdi:snake", press: true },
-  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true, text: "panel_remedy" },
+  { key: "add_remedy", type: "remedy", icon: "mdi:pill", press: true, text: "panel_remedy", recurring: true },
   { key: "add_bath", type: "bath", icon: "mdi:shower-head", press: true },
   { key: "add_grooming", type: "grooming", icon: "mdi:content-cut", press: true },
   { key: "add_vet_visit", type: "vet_visit", icon: "mdi:stethoscope", press: true },
@@ -166,6 +178,8 @@ const ACTIONS = [
 ];
 // Default gap to the next event, in months (same as the integration's sensors).
 const NEXT_MONTHS = { vaccine: 12, deworming: 6, bath: 1 };
+// Event types whose period can be set in the card editor.
+const INTERVAL_TYPES = ["vaccine", "deworming", "remedy", "bath", "grooming", "vet_visit"];
 const DEFAULT_ACTIONS = ACTIONS.map((a) => a.key);
 const HIST = [
   { key: "weight", icon: "mdi:weight-kilogram" },
@@ -304,9 +318,38 @@ class HaPetCareCard extends HTMLElement {
     return `${ny}-${String(nm + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
-  _defaultNext(type, date) {
+  // Days set in the card editor for this type: a number, 0 (no suggestion) or null (use the default).
+  _intervalDays(type) {
+    const v = this._config[`interval_${type}`];
+    return v === undefined || v === null || v === "" || isNaN(Number(v)) ? null : Math.max(0, Math.round(Number(v)));
+  }
+
+  _addDays(iso, days) {
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, m - 1, d + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  }
+
+  // The date the integration's sensor computes on its own (fixed months, by type).
+  _builtinNext(type, date) {
     const months = NEXT_MONTHS[type];
     return months && /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? this._addMonths(date, months) : "";
+  }
+
+  // Recurring types (remedy) show the next date only when the user ticks "Recurring".
+  _showNext(action) {
+    return action.recurring ? Boolean(this._panel?.recurring) : this._hasNext(action.type);
+  }
+
+  _hasNext(type) {
+    const days = this._intervalDays(type);
+    return days === null ? Boolean(NEXT_MONTHS[type]) : days > 0;
+  }
+
+  _defaultNext(type, date) {
+    const days = this._intervalDays(type);
+    if (days === null) return this._builtinNext(type, date);
+    return days > 0 && /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? this._addDays(date, days) : "";
   }
 
   _petName(byKey) {
@@ -327,7 +370,8 @@ class HaPetCareCard extends HTMLElement {
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
       <label>${this._esc(t.panel_date)}<input type="date" max="${this._today()}" data-pfield="date" value="${this._esc(p.date)}"></label>
-      ${NEXT_MONTHS[action.type] ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
+      ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
+      ${this._showNext(action) ? `<label>${this._esc(t.panel_next)}<input type="date" min="${this._esc(p.date)}" data-pfield="next" value="${this._esc(p.next || "")}"></label>` : ""}
       <div class="pbtns">
         <button class="pbtn" data-pcancel>${this._esc(t.panel_cancel)}</button>
         <button class="pbtn ok" data-pok>${this._esc(t.panel_ok)}</button>
@@ -349,7 +393,9 @@ class HaPetCareCard extends HTMLElement {
       const w = Number(p.weight);
       return dateOk && w > 0 && w <= 200;
     }
-    const nextOk = !p.next || (/^\d{4}-\d{2}-\d{2}$/.test(p.next) && p.next >= p.date);
+    const nextOk = action?.recurring && p.recurring
+      ? /^\d{4}-\d{2}-\d{2}$/.test(p.next || "") && p.next >= p.date
+      : !p.next || (/^\d{4}-\d{2}-\d{2}$/.test(p.next) && p.next >= p.date);
     return dateOk && nextOk;
   }
 
@@ -378,8 +424,9 @@ class HaPetCareCard extends HTMLElement {
       const chosen = this._vaccineOptions().filter((v) => (p.vaccines || []).includes(v));
       if (action.multi && chosen.length) data.description = chosen.join(", ");
       if (action.text && (p.desc || "").trim()) data.description = p.desc.trim();
-      // Send the next date only when it differs from the default, so the sensor keeps computing it.
-      if (p.next && p.next !== this._defaultNext(action.type, p.date)) data.next_due = p.next;
+      // Send the next date only when it differs from what the sensor computes on its own.
+      const next = action.recurring && !p.recurring ? "" : p.next;
+      if (next && next !== this._builtinNext(action.type, p.date)) data.next_due = next;
       this._hass.callService("ha_pet_care", "add_record", data);
     } else {
       this._hass.callService("ha_pet_care", "add_weight", { pet, weight: Number(p.weight), date: p.date });
@@ -549,9 +596,9 @@ class HaPetCareCard extends HTMLElement {
       </div>`;
   }
 
-  _render() {
+  _render(force = false) {
     if (!this._config || !this._hass) return;
-    if (this._panel && this.querySelector(".panel input:focus")) return; // never rebuild while the user types
+    if (!force && this._panel && this.querySelector(".panel input:not([type=checkbox]):focus")) return; // never rebuild while the user types
     const hass = this._hass;
     const t = tr(hass);
     const { deviceId, byKey } = this._siblings();
@@ -606,6 +653,8 @@ class HaPetCareCard extends HTMLElement {
           .vchip.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
           .panel input.w { width: 6.5em; }
           .panel label.grow { flex: 1 0 100%; }
+          .panel label.chk { flex-direction: row; align-items: center; gap: 6px; font-size: 0.9em; color: var(--primary-text-color); cursor: pointer; }
+          .panel label.chk input { min-width: auto; width: 18px; height: 18px; margin: 0; }
           .pbtns { display: flex; gap: 8px; margin-left: auto; }
           .pbtn { font: inherit; padding: 7px 14px; border-radius: 16px; cursor: pointer;
                   border: 1px solid var(--divider-color); background: var(--secondary-background-color); color: var(--primary-text-color); }
@@ -734,6 +783,17 @@ class HaPetCareCard extends HTMLElement {
           if (ev.key === "Escape") { this._panel = null; this._last = null; this._render(); }
         });
       });
+      const rec = panel.querySelector("[data-precurring]");
+      if (rec) {
+        rec.addEventListener("change", () => {
+          this._panel.recurring = rec.checked;
+          const type = ACTIONS.find((a) => a.key === this._panel.key)?.type;
+          if (rec.checked && !this._panel.next) this._panel.next = this._defaultNext(type, this._panel.date);
+          this._last = null;
+          this._render(true);
+          if (rec.checked) this.querySelector('.panel [data-pfield="next"]')?.focus();
+        });
+      }
       panel.querySelectorAll("[data-vaccine]").forEach((chip) => {
         chip.addEventListener("click", () => {
           const list = this._panel.vaccines || [];
@@ -900,7 +960,17 @@ class HaPetCareCardEditor extends HTMLElement {
       this._form = document.createElement("ha-form");
       this._form.addEventListener("value-changed", (ev) => {
         const { fields, actions, history_types, ...rest } = ev.detail.value;
-        this._emit({ ...this._config, ...rest });
+        const config = { ...this._config, ...rest };
+        // Keep the vaccine list out of the config while it matches the language default.
+        const vaccines = (config.vaccine_options || []).map((v) => String(v).trim()).filter(Boolean);
+        if (!vaccines.length || vaccines.join("|") === tr(this._hass).vaccines.join("|")) delete config.vaccine_options;
+        else config.vaccine_options = vaccines;
+        for (const type of INTERVAL_TYPES) {
+          const v = config[`interval_${type}`];
+          if (v === undefined || v === null || v === "" || isNaN(Number(v))) delete config[`interval_${type}`];
+          else config[`interval_${type}`] = Math.max(0, Math.round(Number(v)));
+        }
+        this._emit(config);
       });
       this._lists = document.createElement("div");
       this.appendChild(this._form);
@@ -908,7 +978,7 @@ class HaPetCareCardEditor extends HTMLElement {
     }
     const t = tr(this._hass);
     this._form.hass = this._hass;
-    this._form.data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, ...this._config };
+    this._form.data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, vaccine_options: t.vaccines, ...this._config };
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { integration: "ha_pet_care" } } },
       { name: "name", selector: { text: {} } },
@@ -917,8 +987,19 @@ class HaPetCareCardEditor extends HTMLElement {
       { name: "ask_date", selector: { boolean: {} } },
       { name: "show_history", selector: { boolean: {} } },
       { name: "history_limit", selector: { number: { min: 1, max: 50, mode: "box" } } },
+      { name: "vaccine_options", selector: { text: { multiple: true } } },
+      {
+        name: "intervals",
+        type: "expandable",
+        title: t.intervals,
+        flatten: true,
+        schema: INTERVAL_TYPES.map((type) => ({ name: `interval_${type}`, selector: { number: { min: 0, max: 3650, mode: "box", unit_of_measurement: "d" } } })),
+      },
     ];
-    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit };
+    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, intervals: t.intervals };
+    for (const type of INTERVAL_TYPES) {
+      labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
+    }
     this._form.computeLabel = (s) => labels[s.name] || s.name;
     this._renderLists();
   }
