@@ -20,7 +20,7 @@ const TEXTS = {
     tab_summary: "Resumo",
     tab_history: "Histórico",
     show_history: "Mostrar aba Histórico",
-    history_types: "Filtros do histórico",
+    history_types: "Histórico exibido",
     history_limit: "Quantidade de itens no histórico",
     no_history: "Nenhum registro ainda",
     ask_date: "Perguntar a data ao registrar",
@@ -50,7 +50,7 @@ const TEXTS = {
     drag: "Arrastar para reordenar",
     actions: "Ações exibidas",
     sec_display: "Exibição",
-    sec_logging: "Registro de eventos",
+    sec_logging: "Lista de vacinas",
     sec_history: "Histórico",
     act_add_vaccine: "Vacina",
     act_add_deworming: "Vermífugo",
@@ -75,7 +75,10 @@ const TEXTS = {
     entity: "Entidade de qualquer sensor do pet",
     name: "Nome (opcional)",
     vaccine_options: "Vacinas oferecidas ao registrar",
-    intervals: "Período até o próximo evento (em dias; vazio = padrão, 0 = sem sugestão)",
+    remedy_options: "Remédios oferecidos ao registrar",
+    sec_remedies: "Lista de remédios",
+    intervals: "Próximas datas padrão",
+    intervals_hint: "Em dias; vazio = padrão, 0 = sem sugestão.",
     interval: (x, d) => `${x} (padrão: ${d})`,
     no_default: "sem sugestão",
     months: (n) => (n === 1 ? "1 mês" : n === 12 ? "1 ano" : `${n} meses`),
@@ -99,7 +102,7 @@ const TEXTS = {
     tab_summary: "Summary",
     tab_history: "History",
     show_history: "Show History tab",
-    history_types: "History filters",
+    history_types: "History to show",
     history_limit: "Number of history items",
     no_history: "No records yet",
     ask_date: "Ask for the date when logging",
@@ -129,7 +132,7 @@ const TEXTS = {
     drag: "Drag to reorder",
     actions: "Actions to show",
     sec_display: "Display",
-    sec_logging: "Logging events",
+    sec_logging: "Vaccine list",
     sec_history: "History",
     act_add_vaccine: "Vaccine",
     act_add_deworming: "Dewormer",
@@ -154,7 +157,10 @@ const TEXTS = {
     entity: "Any entity of the pet",
     name: "Name (optional)",
     vaccine_options: "Vaccines offered when logging",
-    intervals: "Time until the next event (in days; empty = default, 0 = no suggestion)",
+    remedy_options: "Remedies offered when logging",
+    sec_remedies: "Remedy list",
+    intervals: "Next due defaults",
+    intervals_hint: "In days; empty = default, 0 = no suggestion.",
     interval: (x, d) => `${x} (default: ${d})`,
     no_default: "no suggestion",
     months: (n) => (n === 1 ? "1 month" : n === 12 ? "1 year" : `${n} months`),
@@ -376,6 +382,7 @@ class HaPetCareCard extends HTMLElement {
     return `<div class="panel" data-panel="${action.key}">
       <div class="ptitle">${this._esc(title)}</div>
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
+      ${action.text && this._remedyOptions().length ? `<div class="vchips">${this._remedyOptions().map((v) => `<button type="button" class="vchip ${p.desc === v ? "on" : ""}" data-remedy="${this._esc(v)}" aria-pressed="${p.desc === v}">${this._esc(v)}</button>`).join("")}</div>` : ""}
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
@@ -386,6 +393,11 @@ class HaPetCareCard extends HTMLElement {
         <button class="pbtn ok" data-pok>${this._esc(t.panel_ok)}</button>
       </div>
     </div>`;
+  }
+
+  _remedyOptions() {
+    const opts = this._config.remedy_options;
+    return Array.isArray(opts) ? opts.map(String).filter(Boolean) : [];
   }
 
   _vaccineOptions() {
@@ -812,6 +824,14 @@ class HaPetCareCard extends HTMLElement {
           if (rec.checked) this.querySelector('.panel [data-pfield="next"]')?.focus();
         });
       }
+      panel.querySelectorAll("[data-remedy]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const v = chip.dataset.remedy;
+          this._panel.desc = this._panel.desc === v ? "" : v;
+          this._last = null;
+          this._render(true);
+        });
+      });
       panel.querySelectorAll("[data-vaccine]").forEach((chip) => {
         chip.addEventListener("click", () => {
           const list = this._panel.vaccines || [];
@@ -1000,6 +1020,9 @@ class HaPetCareCardEditor extends HTMLElement {
         const vaccines = (config.vaccine_options || []).map((v) => String(v).trim()).filter(Boolean);
         if (!vaccines.length || vaccines.join("|") === tr(this._hass).vaccines.join("|")) delete config.vaccine_options;
         else config.vaccine_options = vaccines;
+        const remedies = (config.remedy_options || []).map((v) => String(v).trim()).filter(Boolean);
+        if (remedies.length) config.remedy_options = remedies;
+        else delete config.remedy_options;
         for (const type of INTERVAL_TYPES) {
           const v = config[`interval_${type}`];
           if (v === undefined || v === null || v === "" || isNaN(Number(v))) delete config[`interval_${type}`];
@@ -1025,6 +1048,7 @@ class HaPetCareCardEditor extends HTMLElement {
           { name: "name", selector: { text: {} } },
           { name: "show_photo", selector: { boolean: {} } },
           { name: "show_name", selector: { boolean: {} } },
+          { name: "ask_date", selector: { boolean: {} } },
         ],
       },
       {
@@ -1033,9 +1057,15 @@ class HaPetCareCardEditor extends HTMLElement {
         flatten: true,
         title: t.sec_logging,
         schema: [
-          { name: "ask_date", selector: { boolean: {} } },
           { name: "vaccine_options", selector: { text: { multiple: true } } },
         ],
+      },
+      {
+        name: "sec_remedies",
+        type: "expandable",
+        flatten: true,
+        title: t.sec_remedies,
+        schema: [{ name: "remedy_options", selector: { text: { multiple: true } } }],
       },
       {
         name: "sec_history",
@@ -1055,11 +1085,13 @@ class HaPetCareCardEditor extends HTMLElement {
         schema: INTERVAL_TYPES.map((type) => ({ name: `interval_${type}`, selector: { number: { min: 0, max: 3650, mode: "box", unit_of_measurement: "d" } } })),
       },
     ];
-    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
+    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, remedy_options: t.remedy_options, sec_remedies: t.sec_remedies, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
     for (const type of INTERVAL_TYPES) {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
     this._form.computeLabel = (s) => labels[s.name] || s.name;
+    // The period hint sits inside its section, under the first field.
+    this._form.computeHelper = (s) => (s.name === `interval_${INTERVAL_TYPES[0]}` ? t.intervals_hint : undefined);
     this._renderLists();
   }
 }
