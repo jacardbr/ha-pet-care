@@ -192,7 +192,7 @@ const ACTIONS = [
   { key: "log_weight", icon: "mdi:scale-bathroom", press: false },
 ];
 // Default gap to the next event, in months (same as the integration's sensors).
-const NEXT_MONTHS = { vaccine: 12, deworming: 6, bath: 1 };
+const NEXT_MONTHS = { vaccine: 12, deworming: 6, bath: 1, grooming: 6, vet_visit: 12 };
 // Event types whose period can be set in the card editor.
 const INTERVAL_TYPES = ["vaccine", "deworming", "remedy", "bath", "grooming", "vet_visit"];
 const DEFAULT_ACTIONS = ACTIONS.map((a) => a.key);
