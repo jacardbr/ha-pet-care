@@ -226,6 +226,24 @@ const LISTS = {
 const CARD_VERSION = 3;
 const ADDED_IN = { 2: { actions: ["add_remedy"], history_types: ["remedy"] }, 3: { fields: ["next_remedy"] } };
 
+// Remedy names already logged for this pet (from the remedy sensor's history).
+const loggedRemedies = (hass, config) => {
+  const source = hass?.entities?.[config?.entity];
+  if (!source?.device_id) return [];
+  const ent = Object.values(hass.entities).find(
+    (e) => e.device_id === source.device_id && e.platform === "ha_pet_care" && e.translation_key === "remedy"
+  );
+  const history = ent ? hass.states[ent.entity_id]?.attributes?.history : null;
+  return Array.isArray(history) ? history.map((r) => String(r?.description || "").trim()).filter(Boolean) : [];
+};
+
+// Merge lists case-insensitively, trimming and dropping blanks.
+const mergeNames = (...lists) => {
+  const seen = new Set();
+  return lists.flat().map((v) => String(v ?? "").trim())
+    .filter((v) => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
+};
+
 const resolveList = (config, name) => {
   const { items, defaults } = LISTS[name];
   if (!Array.isArray(config[name])) return defaults;
@@ -382,7 +400,7 @@ class HaPetCareCard extends HTMLElement {
     return `<div class="panel" data-panel="${action.key}">
       <div class="ptitle">${this._esc(title)}</div>
       ${action.multi ? `<div class="vwrap"><div class="vlabel">${this._esc(t.panel_desc)}</div><div class="vchips">${this._vaccineOptions().map((v) => `<button type="button" class="vchip ${(p.vaccines || []).includes(v) ? "on" : ""}" data-vaccine="${this._esc(v)}" aria-pressed="${(p.vaccines || []).includes(v)}">${this._esc(v)}</button>`).join("")}</div></div>` : ""}
-      ${action.text && this._remedyOptions(byKey).length ? `<div class="vchips">${this._remedyOptions(byKey).map((v) => `<button type="button" class="vchip ${p.desc === v ? "on" : ""}" data-remedy="${this._esc(v)}" aria-pressed="${p.desc === v}">${this._esc(v)}</button>`).join("")}</div>` : ""}
+      ${action.text && this._remedyOptions().length ? `<div class="vchips">${this._remedyOptions().map((v) => `<button type="button" class="vchip ${p.desc === v ? "on" : ""}" data-remedy="${this._esc(v)}" aria-pressed="${p.desc === v}">${this._esc(v)}</button>`).join("")}</div>` : ""}
       ${action.text ? `<label class="grow">${this._esc(t[action.text])}<input type="text" maxlength="100" data-pfield="desc" value="${this._esc(p.desc || "")}"></label>` : ""}
       ${action.recurring ? `<label class="chk"><input type="checkbox" data-precurring ${p.recurring ? "checked" : ""}> ${this._esc(t.panel_recurring)}</label>` : ""}
       ${isWeight ? `<label>${this._esc(t.panel_weight)}<input class="w" type="number" inputmode="decimal" step="0.01" min="0.01" max="200" data-pfield="weight" value="${this._esc(p.weight ?? "")}"></label>` : ""}
@@ -396,15 +414,9 @@ class HaPetCareCard extends HTMLElement {
   }
 
   // Remedies from the card editor, plus any name already logged (so a typed name joins the list).
-  _remedyOptions(byKey) {
-    const opts = Array.isArray(this._config.remedy_options) ? this._config.remedy_options.map(String) : [];
-    const entityId = byKey?.remedy;
-    const history = entityId ? this._hass.states[entityId]?.attributes?.history : null;
-    const logged = Array.isArray(history) ? history.map((r) => r.description) : [];
-    const seen = new Set();
-    return [...opts, ...logged]
-      .map((v) => String(v || "").trim())
-      .filter((v) => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
+  _remedyOptions() {
+    const opts = Array.isArray(this._config.remedy_options) ? this._config.remedy_options : [];
+    return mergeNames(opts, loggedRemedies(this._hass, this._config));
   }
 
   _vaccineOptions() {
@@ -1046,6 +1058,16 @@ class HaPetCareCardEditor extends HTMLElement {
       this._lists = document.createElement("div");
       this.appendChild(this._form);
       this.appendChild(this._lists);
+    }
+    // Once per editor opening, add remedies already logged to the saved list (so they can be edited or removed).
+    if (!this._remedySynced && this._config.entity && this._hass.entities?.[this._config.entity]) {
+      this._remedySynced = true;
+      const current = Array.isArray(this._config.remedy_options) ? this._config.remedy_options : [];
+      const known = new Set(current.map((v) => String(v ?? "").trim().toLowerCase()));
+      const missing = mergeNames(loggedRemedies(this._hass, this._config)).filter((v) => !known.has(v.toLowerCase()));
+      if (missing.length) {
+        this._emit({ ...this._config, remedy_options: [...current.filter((v) => String(v ?? "").trim()), ...missing] });
+      }
     }
     const t = tr(this._hass);
     this._form.hass = this._hass;
