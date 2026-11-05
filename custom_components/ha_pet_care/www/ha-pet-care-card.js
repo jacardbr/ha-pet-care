@@ -20,7 +20,7 @@ const TEXTS = {
     tab_summary: "Resumo",
     tab_history: "Histórico",
     show_history: "Mostrar aba Histórico",
-    history_types: "Filtros do histórico",
+    history_types: "Histórico exibido",
     history_limit: "Quantidade de itens no histórico",
     no_history: "Nenhum registro ainda",
     ask_date: "Perguntar a data ao registrar",
@@ -50,7 +50,7 @@ const TEXTS = {
     drag: "Arrastar para reordenar",
     actions: "Ações exibidas",
     sec_display: "Exibição",
-    sec_logging: "Registro de eventos",
+    sec_logging: "Lista de vacinas",
     sec_history: "Histórico",
     act_add_vaccine: "Vacina",
     act_add_deworming: "Vermífugo",
@@ -75,7 +75,8 @@ const TEXTS = {
     entity: "Entidade de qualquer sensor do pet",
     name: "Nome (opcional)",
     vaccine_options: "Vacinas oferecidas ao registrar",
-    intervals: "Período até o próximo evento (em dias; vazio = padrão, 0 = sem sugestão)",
+    intervals: "Próximas datas padrão",
+    intervals_hint: "Em dias; vazio = padrão, 0 = sem sugestão.",
     interval: (x, d) => `${x} (padrão: ${d})`,
     no_default: "sem sugestão",
     months: (n) => (n === 1 ? "1 mês" : n === 12 ? "1 ano" : `${n} meses`),
@@ -99,7 +100,7 @@ const TEXTS = {
     tab_summary: "Summary",
     tab_history: "History",
     show_history: "Show History tab",
-    history_types: "History filters",
+    history_types: "History to show",
     history_limit: "Number of history items",
     no_history: "No records yet",
     ask_date: "Ask for the date when logging",
@@ -129,7 +130,7 @@ const TEXTS = {
     drag: "Drag to reorder",
     actions: "Actions to show",
     sec_display: "Display",
-    sec_logging: "Logging events",
+    sec_logging: "Vaccine list",
     sec_history: "History",
     act_add_vaccine: "Vaccine",
     act_add_deworming: "Dewormer",
@@ -154,7 +155,8 @@ const TEXTS = {
     entity: "Any entity of the pet",
     name: "Name (optional)",
     vaccine_options: "Vaccines offered when logging",
-    intervals: "Time until the next event (in days; empty = default, 0 = no suggestion)",
+    intervals: "Next due defaults",
+    intervals_hint: "In days; empty = default, 0 = no suggestion.",
     interval: (x, d) => `${x} (default: ${d})`,
     no_default: "no suggestion",
     months: (n) => (n === 1 ? "1 month" : n === 12 ? "1 year" : `${n} months`),
@@ -1025,6 +1027,7 @@ class HaPetCareCardEditor extends HTMLElement {
           { name: "name", selector: { text: {} } },
           { name: "show_photo", selector: { boolean: {} } },
           { name: "show_name", selector: { boolean: {} } },
+          { name: "ask_date", selector: { boolean: {} } },
         ],
       },
       {
@@ -1033,7 +1036,6 @@ class HaPetCareCardEditor extends HTMLElement {
         flatten: true,
         title: t.sec_logging,
         schema: [
-          { name: "ask_date", selector: { boolean: {} } },
           { name: "vaccine_options", selector: { text: { multiple: true } } },
         ],
       },
@@ -1060,6 +1062,8 @@ class HaPetCareCardEditor extends HTMLElement {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
     this._form.computeLabel = (s) => labels[s.name] || s.name;
+    // The period hint sits inside its section, under the first field.
+    this._form.computeHelper = (s) => (s.name === `interval_${INTERVAL_TYPES[0]}` ? t.intervals_hint : undefined);
     this._renderLists();
   }
 }
