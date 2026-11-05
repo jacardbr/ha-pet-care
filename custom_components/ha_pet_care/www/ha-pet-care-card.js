@@ -49,6 +49,9 @@ const TEXTS = {
     order_hint: "Marque os itens e arraste pelo ícone ☰ para mudar a ordem.",
     drag: "Arrastar para reordenar",
     actions: "Ações exibidas",
+    sec_display: "Exibição",
+    sec_logging: "Registro de eventos",
+    sec_history: "Histórico",
     act_add_vaccine: "Vacina",
     act_add_deworming: "Vermífugo",
     act_add_bath: "Banho",
@@ -125,6 +128,9 @@ const TEXTS = {
     order_hint: "Tick items and drag the ☰ handle to change the order.",
     drag: "Drag to reorder",
     actions: "Actions to show",
+    sec_display: "Display",
+    sec_logging: "Logging events",
+    sec_history: "History",
     act_add_vaccine: "Vaccine",
     act_add_deworming: "Dewormer",
     act_add_bath: "Bath",
@@ -873,7 +879,17 @@ class HaPetCareCardEditor extends HTMLElement {
           <label><input type="checkbox" data-list="${name}" data-toggle="${key}" ${checked ? "checked" : ""}> ${this._labelFor(name, key, t)}</label>
         </div>`;
     const rows = selected.map((k) => row(k, true)).join("") + rest.map((k) => row(k, false)).join("");
-    return `<div class="sec"><div class="title">${label}</div><div class="list" data-list="${name}">${rows}</div></div>`;
+    return this._section(name, label, `<div class="hint">${t.order_hint}</div><div class="list" data-list="${name}">${rows}</div>`);
+  }
+
+  // Collapsible section, like the ones ha-form draws; remembers which ones are open across re-renders.
+  _section(id, title, inner) {
+    const open = this._openSecs?.has(id);
+    const safe = String(title).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    if (customElements.get("ha-expansion-panel")) {
+      return `<ha-expansion-panel outlined class="sec" data-sec="${id}" header="${safe}" ${open ? "expanded" : ""}><div class="inner">${inner}</div></ha-expansion-panel>`;
+    }
+    return `<details class="sec" data-sec="${id}" ${open ? "open" : ""}><summary>${safe}</summary><div class="inner">${inner}</div></details>`;
   }
 
   _labelFor(name, key, t) {
@@ -885,9 +901,11 @@ class HaPetCareCardEditor extends HTMLElement {
     if (this._dragging) return; // Home Assistant pushes updates constantly; never rebuild mid-drag
     const t = tr(this._hass);
     const html = `<style>
-        .sec { margin-top: 16px; }
-        .title { font-weight: 500; margin-bottom: 4px; }
-        .hint { color: var(--secondary-text-color); font-size: 0.85em; margin-top: 12px; }
+        .sec { display: block; margin-top: 8px; }
+        details.sec { border: 1px solid var(--divider-color); border-radius: 12px; padding: 0 12px; }
+        details.sec summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
+        .sec .inner { padding-bottom: 8px; }
+        .hint { color: var(--secondary-text-color); font-size: 0.85em; margin: 4px 0 8px; }
         .item { display: flex; align-items: center; gap: 8px; padding: 2px 8px 2px 4px; border-radius: 8px;
                 background: var(--card-background-color); border: 1px solid transparent; }
         .item.on { border-color: var(--divider-color); margin-bottom: 4px; }
@@ -899,13 +917,18 @@ class HaPetCareCardEditor extends HTMLElement {
         .handle.off { cursor: default; }
         .item.off label { color: var(--secondary-text-color); }
       </style>
-      <div class="hint">${t.order_hint}</div>
       ${this._listHtml("actions", ACTIONS, DEFAULT_ACTIONS, t, t.actions)}
       ${this._listHtml("fields", ROWS, DEFAULT_FIELDS, t, t.fields)}
       ${this._listHtml("history_types", HIST, DEFAULT_HIST, t, t.history_types)}`;
     if (html === this._listsHtml) return; // nothing changed: keep the DOM (and its listeners)
     this._listsHtml = html;
     this._lists.innerHTML = html;
+    this._openSecs = this._openSecs || new Set();
+    this._lists.querySelectorAll("[data-sec]").forEach((sec) => {
+      const remember = (open) => (open ? this._openSecs.add(sec.dataset.sec) : this._openSecs.delete(sec.dataset.sec));
+      sec.addEventListener("expanded-changed", (ev) => remember(ev.detail?.expanded));
+      sec.addEventListener("toggle", () => { if (sec.tagName === "DETAILS") remember(sec.open); });
+    });
     this._lists.querySelectorAll("input[data-toggle]").forEach((el) => {
       el.addEventListener("change", () => {
         const name = el.dataset.list;
@@ -993,13 +1016,37 @@ class HaPetCareCardEditor extends HTMLElement {
     this._form.data = { show_photo: true, show_name: true, show_history: true, ask_date: true, history_limit: 15, vaccine_options: t.vaccines, ...this._config };
     this._form.schema = [
       { name: "entity", required: true, selector: { entity: { integration: "ha_pet_care" } } },
-      { name: "name", selector: { text: {} } },
-      { name: "show_photo", selector: { boolean: {} } },
-      { name: "show_name", selector: { boolean: {} } },
-      { name: "ask_date", selector: { boolean: {} } },
-      { name: "show_history", selector: { boolean: {} } },
-      { name: "history_limit", selector: { number: { min: 1, max: 50, mode: "box" } } },
-      { name: "vaccine_options", selector: { text: { multiple: true } } },
+      {
+        name: "sec_display",
+        type: "expandable",
+        flatten: true,
+        title: t.sec_display,
+        schema: [
+          { name: "name", selector: { text: {} } },
+          { name: "show_photo", selector: { boolean: {} } },
+          { name: "show_name", selector: { boolean: {} } },
+        ],
+      },
+      {
+        name: "sec_logging",
+        type: "expandable",
+        flatten: true,
+        title: t.sec_logging,
+        schema: [
+          { name: "ask_date", selector: { boolean: {} } },
+          { name: "vaccine_options", selector: { text: { multiple: true } } },
+        ],
+      },
+      {
+        name: "sec_history",
+        type: "expandable",
+        flatten: true,
+        title: t.sec_history,
+        schema: [
+          { name: "show_history", selector: { boolean: {} } },
+          { name: "history_limit", selector: { number: { min: 1, max: 50, mode: "box" } } },
+        ],
+      },
       {
         name: "intervals",
         type: "expandable",
@@ -1008,7 +1055,7 @@ class HaPetCareCardEditor extends HTMLElement {
         schema: INTERVAL_TYPES.map((type) => ({ name: `interval_${type}`, selector: { number: { min: 0, max: 3650, mode: "box", unit_of_measurement: "d" } } })),
       },
     ];
-    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, intervals: t.intervals };
+    const labels = { entity: t.entity, name: t.name, show_photo: t.show_photo, show_name: t.show_name, show_history: t.show_history, ask_date: t.ask_date, history_limit: t.history_limit, vaccine_options: t.vaccine_options, intervals: t.intervals, sec_display: t.sec_display, sec_logging: t.sec_logging, sec_history: t.sec_history };
     for (const type of INTERVAL_TYPES) {
       labels[`interval_${type}`] = t.interval(t[`act_add_${type}`], NEXT_MONTHS[type] ? t.months(NEXT_MONTHS[type]) : t.no_default);
     }
