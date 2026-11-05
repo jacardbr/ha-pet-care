@@ -2,7 +2,7 @@
 
 All notable changes to HA Pet Care are listed here. Versions follow the `version` in `custom_components/ha_pet_care/manifest.json` and the GitHub releases.
 
-## [1.1.0] - Unreleased
+## [1.1.0] - 2026-11-05
 
 ### Added
 - **Remedy** record type: sensor (Last remedy), device button and action, with a pill icon. The record keeps the remedy name.
@@ -89,7 +89,7 @@ All notable changes to HA Pet Care are listed here. Versions follow the `version
 - First release: one device per pet with last vaccine, dewormer, exam, bath, grooming and vet visit sensors, a next due sensor, an age sensor and a profile photo.
 - HACS and Hassfest validation workflow.
 
-[1.1.0]: https://github.com/jacardbr/ha-pet-care/compare/1.0.0...main
+[1.1.0]: https://github.com/jacardbr/ha-pet-care/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/jacardbr/ha-pet-care/compare/0.7.0...1.0.0
 [0.7.0]: https://github.com/jacardbr/ha-pet-care/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/jacardbr/ha-pet-care/compare/0.5.0...0.6.0
