@@ -25,6 +25,7 @@ from .const import (
     DEWORMING_INTERVAL_MONTHS,
     HISTORY_LIMIT,
     RECORD_DEWORMING,
+    RECORD_REMEDY,
     RECORD_TYPES,
     RECORD_VACCINE,
     VACCINE_INTERVAL_MONTHS,
@@ -47,6 +48,7 @@ async def async_setup_entry(
         entities.append(PetNextVaccineSensor(store, pet_id))
         entities.append(PetNextDewormerSensor(store, pet_id))
         entities.append(PetNextBathSensor(store, pet_id))
+        entities.append(PetNextRemedySensor(store, pet_id))
         entities.append(PetAgeSensor(store, pet_id))
         entities.append(PetWeightSensor(store, pet_id))
     async_add_entities(entities)
@@ -165,6 +167,8 @@ class PetNextCareSensor(PetBaseSensor):
         self._interval_days = interval_days
 
     def _interval_attrs(self) -> dict[str, Any]:
+        if self._interval_months is None and self._interval_days is None:
+            return {}
         if self._interval_days is not None:
             return {"interval_days": self._interval_days}
         return {"interval_months": self._interval_months}
@@ -182,6 +186,8 @@ class PetNextCareSensor(PetBaseSensor):
         last = records[0]
         if last["next_due"]:
             return date.fromisoformat(last["next_due"]), last, "manual"
+        if self._interval_months is None and self._interval_days is None:
+            return None  # no automatic interval: only a typed next date counts
         return (
             self._add_interval(date.fromisoformat(last["date"])),
             last,
@@ -240,6 +246,14 @@ class PetNextBathSensor(PetNextCareSensor):
         super().__init__(
             store, pet_id, "next_bath", RECORD_BATH, interval_months=BATH_INTERVAL_MONTHS
         )
+
+
+class PetNextRemedySensor(PetNextCareSensor):
+    """Next remedy dose: only the next date typed on the last remedy (recurring)."""
+
+    def __init__(self, store: PetCareStore, pet_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(store, pet_id, "next_remedy", RECORD_REMEDY)
 
 
 def _age_parts(birth: date, today: date) -> tuple[int, int, int]:

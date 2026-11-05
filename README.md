@@ -22,6 +22,7 @@ For each pet, a device with:
 | `sensor.<pet>_last_vet_visit` | Date of the last vet visit |
 | `sensor.<pet>_last_remedy` | Date of the last remedy |
 | `sensor.<pet>_next_vaccine` | Date of the next vaccine: **1 year** after the last vaccine, calculated automatically |
+| `sensor.<pet>_next_remedy` | Date of the next remedy dose: the next date set when logging a **recurring** remedy (empty otherwise) |
 | `sensor.<pet>_next_dewormer` | Date of the next dewormer: **6 months** after the last dewormer, calculated automatically |
 | `sensor.<pet>_next_bath` | Date of the next bath: **1 month** after the last bath, calculated automatically |
 | `sensor.<pet>_age` | Age calculated from the birth date (e.g. "2 years and 3 months"); attributes `years`, `months`, `total_months`, `decimal_years`, `next_birthday`, `days_until_birthday` and `is_birthday` |
@@ -198,11 +199,12 @@ actions:      # optional; default: all (list order is the order on the card)
   - add_grooming
   - add_vet_visit
   - log_weight
-fields:       # optional; default: age, next_vaccine, next_dewormer, next_bath
+fields:       # optional; default: age, next_vaccine, next_dewormer, next_remedy, next_bath
   - age
   - weight
   - next_vaccine
   - next_dewormer
+  - next_remedy
   - next_bath
   # also: vaccine, deworming, bath, grooming, vet_visit, exam, remedy
 history_types:   # optional; order of the History filters

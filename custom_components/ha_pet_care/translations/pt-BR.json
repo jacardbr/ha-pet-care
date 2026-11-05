@@ -95,6 +95,9 @@
       "next_bath": {
         "name": "Próximo banho"
       },
+      "next_remedy": {
+        "name": "Próximo remédio"
+      },
       "remedy": {
         "name": "Último remédio"
       }
